@@ -1,5 +1,5 @@
 import { NavigationContainer } from '@react-navigation/native'
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
+import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs'
 import { createNativeStackNavigator } from '@react-navigation/native-stack'
 import { AuthProvider, useAuth } from './lib/AuthContext'
 import LoginScreen from './screens/LoginScreen'
@@ -9,17 +9,14 @@ import CommitteeMenuScreen from './screens/CommitteeMenuScreen'
 import NoticesScreen from './screens/NoticesScreen'
 import CollectionsScreen from './screens/CollectionsScreen'
 import TicketsScreen from './screens/TicketsScreen'
-import VendorsScreen from './screens/VendorsScreen'
 import VendorBookingsScreen from './screens/VendorBookingsScreen'
 import ManageCommitteeScreen from './screens/ManageCommitteeScreen'
 import { View, Text } from 'react-native'
+import { SafeAreaProvider } from 'react-native-safe-area-context'
 
-const Tab = createBottomTabNavigator()
+const Tab = createMaterialTopTabNavigator()
 const CommitteeStack = createNativeStackNavigator()
 
-// The Committee tab is its own mini-stack: starts at a menu screen,
-// tapping an item pushes to that specific admin screen — same idea as
-// web's sidebar, just reshaped for a small screen.
 function CommitteeStackNavigator() {
   return (
     <CommitteeStack.Navigator>
@@ -27,7 +24,6 @@ function CommitteeStackNavigator() {
       <CommitteeStack.Screen name="Notices" component={NoticesScreen} options={{ title: 'Post Notices' }} />
       <CommitteeStack.Screen name="Collections" component={CollectionsScreen} options={{ title: 'Collections' }} />
       <CommitteeStack.Screen name="Tickets" component={TicketsScreen} options={{ title: 'Tickets' }} />
-      <CommitteeStack.Screen name="Vendors" component={VendorsScreen} options={{ title: 'Vendors' }} />
       <CommitteeStack.Screen name="VendorBookings" component={VendorBookingsScreen} options={{ title: 'Vendor Bookings' }} />
       <CommitteeStack.Screen name="ManageCommittee" component={ManageCommitteeScreen} options={{ title: 'Manage Committee' }} />
     </CommitteeStack.Navigator>
@@ -38,12 +34,24 @@ function MainTabs() {
   const { isCommittee } = useAuth()
 
   return (
-    <Tab.Navigator screenOptions={{ headerShown: false }}>
+    <Tab.Navigator
+      tabBarPosition="bottom"
+      screenOptions={{
+        swipeEnabled: true,
+        animationEnabled: true,
+        tabBarShowLabel: true,
+        tabBarShowIcon: false,
+        tabBarIndicatorStyle: { height: 0 }, // hides the default top-tab underline bar
+        tabBarActiveTintColor: '#14262a',
+        tabBarInactiveTintColor: '#9aa5a3',
+        tabBarStyle: { backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#e4ddd0', elevation: 0, shadowOpacity: 0 },
+        tabBarLabelStyle: { fontSize: 12, fontWeight: '600', textTransform: 'none' },
+        tabBarPressColor: 'transparent',
+      }}
+    >
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="Services" component={ServicesScreen} />
-      {isCommittee && (
-        <Tab.Screen name="CommitteeTab" component={CommitteeStackNavigator} options={{ title: 'Committee' }} />
-      )}
+      {isCommittee && <Tab.Screen name="Committee" component={CommitteeStackNavigator} />}
     </Tab.Navigator>
   )
 }
@@ -68,8 +76,10 @@ function Root() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <Root />
-    </AuthProvider>
+    <SafeAreaProvider>
+      <AuthProvider>
+        <Root />
+      </AuthProvider>
+    </SafeAreaProvider>
   )
 }

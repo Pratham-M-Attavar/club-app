@@ -260,8 +260,8 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: '#f4f1ea' },
-  greeting: { fontSize: 22, fontWeight: '700', color: '#14262a' },
-  sub: { fontSize: 13, color: '#6b7674', marginTop: 2, marginBottom: 16 },
+  greeting: { fontSize: 22, fontWeight: '700', color: '#14262a', marginTop: 34 },
+  sub: { fontSize: 13, color: '#6b7674', marginTop: 2, marginBottom: 20 },
 
   duesCard: { backgroundColor: '#14262a', borderRadius: 14, padding: 18, marginBottom: 16 },
   duesLabel: { fontSize: 12, color: '#a9bcb7', textTransform: 'uppercase' },

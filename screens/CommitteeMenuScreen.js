@@ -4,7 +4,6 @@ const MENU_ITEMS = [
   { key: 'Notices', label: 'Post Notices', icon: '📣' },
   { key: 'Collections', label: 'Collections', icon: '₹' },
   { key: 'Tickets', label: 'Tickets', icon: '◎' },
-  { key: 'Vendors', label: 'Vendors', icon: '🛠' },
   { key: 'VendorBookings', label: 'Vendor Bookings', icon: '📋' },
   { key: 'ManageCommittee', label: 'Manage Committee', icon: '👥' },
 ]
