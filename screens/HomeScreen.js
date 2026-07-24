@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { View, Text, TouchableOpacity, TextInput, StyleSheet, ScrollView, Linking, Alert } from 'react-native'
 import * as Clipboard from 'expo-clipboard'
+import { SafeAreaView } from 'react-native-safe-area-context'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 import { colors, spacing, radius, type, NOTICE_CATEGORY_TONES } from '../lib/theme'
@@ -32,6 +33,9 @@ export default function HomeScreen({ navigation }) {
   const [ticketDescription, setTicketDescription] = useState('')
   const [submittingTicket, setSubmittingTicket] = useState(false)
   const [uploadingProof, setUploadingProof] = useState(false)
+  const [flatInfo, setFlatInfo] = useState(null) // { id, maintenance_payer }
+  const [counterpart, setCounterpart] = useState(null) // the other owner/tenant on this flat, if any
+  const [updatingPayer, setUpdatingPayer] = useState(false)
 
   function loadTickets() {
     setTicketsLoading(true)
@@ -64,6 +68,23 @@ export default function HomeScreen({ navigation }) {
       })
 
     loadTickets()
+
+    if (profile.flat_id) {
+      supabase
+        .from('flats')
+        .select('id, maintenance_payer')
+        .eq('id', profile.flat_id)
+        .maybeSingle()
+        .then(({ data }) => setFlatInfo(data))
+
+      supabase
+        .from('profiles')
+        .select('id, full_name, ownership')
+        .eq('flat_id', profile.flat_id)
+        .neq('id', profile.id)
+        .maybeSingle()
+        .then(({ data }) => setCounterpart(data))
+    }
 
     setNoticesLoading(true)
     supabase
@@ -125,6 +146,18 @@ export default function HomeScreen({ navigation }) {
     setUploadingProof(false)
   }
 
+  async function setMaintenancePayer(payer) {
+    if (!flatInfo) return
+    setUpdatingPayer(true)
+    const { error } = await supabase.from('flats').update({ maintenance_payer: payer }).eq('id', flatInfo.id)
+    setUpdatingPayer(false)
+    if (error) {
+      Alert.alert('Could not update', error.message)
+      return
+    }
+    setFlatInfo({ ...flatInfo, maintenance_payer: payer })
+  }
+
   if (!profile) {
     return (
       <View style={styles.centerFill}>
@@ -135,11 +168,43 @@ export default function HomeScreen({ navigation }) {
   }
 
   const openTickets = tickets.filter(t => t.status !== 'done')
+  // Default to 'owner' if flatInfo hasn't loaded yet or the flat predates this
+  // column, matching the migration's default.
+  const maintenancePayer = flatInfo?.maintenance_payer || 'owner'
+  const payerIsMe = profile.ownership === maintenancePayer
+  const counterpartLabel = profile.ownership === 'owner' ? 'tenant' : 'owner'
 
   return (
+    <SafeAreaView style={styles.page} edges={['top']}>
     <ScrollView style={styles.page} contentContainerStyle={{ padding: spacing.xl }}>
       <Text style={type.display}>Hi {profile.full_name?.split(' ')[0]}</Text>
       <Text style={[type.bodyMuted, { marginTop: 2, marginBottom: spacing.xl }]}>Flat {profile.flat_number}</Text>
+
+      {/* Maintenance payer toggle — owner only */}
+      {profile.ownership === 'owner' && counterpart && (
+        <Card>
+          <Text style={type.eyebrow}>Who pays maintenance?</Text>
+          <Text style={[type.bodyMuted, { marginBottom: spacing.md }]}>
+            Choose whether you or your tenant ({counterpart.full_name}) handles the monthly maintenance for this flat.
+          </Text>
+          <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+            <Button
+              label="I pay"
+              onPress={() => setMaintenancePayer('owner')}
+              variant={maintenancePayer === 'owner' ? 'primary' : 'outline'}
+              disabled={updatingPayer}
+              style={{ flex: 1 }}
+            />
+            <Button
+              label="Tenant pays"
+              onPress={() => setMaintenancePayer('tenant')}
+              variant={maintenancePayer === 'tenant' ? 'primary' : 'outline'}
+              disabled={updatingPayer}
+              style={{ flex: 1 }}
+            />
+          </View>
+        </Card>
+      )}
 
       {/* Dues */}
       {duesLoading ? (
@@ -175,32 +240,42 @@ export default function HomeScreen({ navigation }) {
                 </View>
               ) : (
                 <>
-                  <Button label={showPayPanel ? 'Hide payment details' : 'Pay now →'} onPress={() => setShowPayPanel(!showPayPanel)} variant="primary" />
+                  {payerIsMe ? (
+                    <>
+                      <Button label={showPayPanel ? 'Hide payment details' : 'Pay now →'} onPress={() => setShowPayPanel(!showPayPanel)} variant="primary" />
 
-                  {showPayPanel && (
-                    <View style={styles.payPanel}>
-                      <Text style={styles.payPanelLabel}>Pay via UPI to:</Text>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
-                        <Text style={styles.upiId}>{BUILDING_UPI_ID}</Text>
-                        <TouchableOpacity style={styles.copyBtn} onPress={copyUpiId}>
-                          <Text style={styles.copyBtnText}>Copy</Text>
-                        </TouchableOpacity>
-                      </View>
-                      <Button label="Open in UPI app →" onPress={openUpiApp} variant="primary" />
-                      <Text style={styles.payNote}>
-                        Opens GPay/PhonePe if installed. Once paid, the committee will mark it as received.
+                      {showPayPanel && (
+                        <View style={styles.payPanel}>
+                          <Text style={styles.payPanelLabel}>Pay via UPI to:</Text>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
+                            <Text style={styles.upiId}>{BUILDING_UPI_ID}</Text>
+                            <TouchableOpacity style={styles.copyBtn} onPress={copyUpiId}>
+                              <Text style={styles.copyBtnText}>Copy</Text>
+                            </TouchableOpacity>
+                          </View>
+                          <Button label="Open in UPI app →" onPress={openUpiApp} variant="primary" />
+                          <Text style={styles.payNote}>
+                            Opens GPay/PhonePe if installed. Once paid, the committee will mark it as received.
+                          </Text>
+                        </View>
+                      )}
+
+                      <Button
+                        label={uploadingProof ? 'Uploading…' : 'Upload payment proof'}
+                        onPress={handleUploadProof}
+                        loading={uploadingProof}
+                        variant="outline"
+                        style={[styles.onDarkOutline, { marginTop: spacing.md }]}
+                        textStyle={{ color: colors.white }}
+                      />
+                    </>
+                  ) : (
+                    <View style={styles.awaitingBox}>
+                      <Text style={styles.awaitingText}>
+                        Your {counterpartLabel} handles maintenance payment for this flat.
                       </Text>
                     </View>
                   )}
-
-                  <Button
-                    label={uploadingProof ? 'Uploading…' : 'Upload payment proof'}
-                    onPress={handleUploadProof}
-                    loading={uploadingProof}
-                    variant="outline"
-                    style={[styles.onDarkOutline, { marginTop: spacing.md }]}
-                    textStyle={{ color: colors.white }}
-                  />
                 </>
               )}
 
@@ -310,6 +385,7 @@ export default function HomeScreen({ navigation }) {
 
       <Button label="Sign out" onPress={signOut} variant="outline" style={{ alignSelf: 'stretch', marginTop: spacing.xs, marginBottom: spacing.xxl }} />
     </ScrollView>
+    </SafeAreaView>
   )
 }
 
