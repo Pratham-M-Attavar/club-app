@@ -1,6 +1,7 @@
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native'
 
 const MENU_ITEMS = [
+  { key: 'PendingResidents', label: 'Pending Residents', icon: '🛎️' },
   { key: 'Notices', label: 'Post Notices', icon: '📣' },
   { key: 'Collections', label: 'Collections', icon: '₹' },
   { key: 'Tickets', label: 'Tickets', icon: '◎' },

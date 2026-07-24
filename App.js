@@ -3,11 +3,13 @@ import { createMaterialTopTabNavigator } from '@react-navigation/material-top-ta
 import { createNativeStackNavigator } from '@react-navigation/native-stack'
 import { AuthProvider, useAuth } from './lib/AuthContext'
 import LoginScreen from './screens/LoginScreen'
+import PendingApprovalScreen from './screens/PendingApprovalScreen'
 import HomeScreen from './screens/HomeScreen'
 import PaymentHistoryScreen from './screens/PaymentHistoryScreen'
 import ServicesScreen from './screens/ServicesScreen'
 import VendorDetailScreen from './screens/VendorDetailScreen'
 import CommitteeMenuScreen from './screens/CommitteeMenuScreen'
+import PendingResidentsScreen from './screens/PendingResidentsScreen'
 import NoticesScreen from './screens/NoticesScreen'
 import CollectionsScreen from './screens/CollectionsScreen'
 import TicketsScreen from './screens/TicketsScreen'
@@ -30,6 +32,7 @@ function CommitteeStackNavigator() {
       <CommitteeStack.Screen name="Tickets" component={TicketsScreen} options={{ title: 'Tickets' }} />
       <CommitteeStack.Screen name="VendorBookings" component={VendorBookingsScreen} options={{ title: 'Vendor Bookings' }} />
       <CommitteeStack.Screen name="ManageCommittee" component={ManageCommitteeScreen} options={{ title: 'Manage Committee' }} />
+      <CommitteeStack.Screen name="PendingResidents" component={PendingResidentsScreen} options={{ title: 'Pending Residents' }} />
     </CommitteeStack.Navigator>
   )
 }
@@ -83,7 +86,7 @@ function MainTabs() {
 }
 
 function Root() {
-  const { session, loading } = useAuth()
+  const { session, profile, loading } = useAuth()
 
   if (loading) {
     return (
@@ -93,9 +96,35 @@ function Root() {
     )
   }
 
+  if (!session) {
+    return (
+      <NavigationContainer>
+        <LoginScreen />
+      </NavigationContainer>
+    )
+  }
+
+  // Session exists but profile hasn't finished loading yet — brief moment
+  // right after login/signup. Don't flash the approval screen during this.
+  if (!profile) {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+        <Text>Loading…</Text>
+      </View>
+    )
+  }
+
+  if (profile.approval_status !== 'approved') {
+    return (
+      <NavigationContainer>
+        <PendingApprovalScreen />
+      </NavigationContainer>
+    )
+  }
+
   return (
     <NavigationContainer>
-      {session ? <MainTabs /> : <LoginScreen />}
+      <MainTabs />
     </NavigationContainer>
   )
 }
