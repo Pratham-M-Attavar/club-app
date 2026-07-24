@@ -4,7 +4,9 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack'
 import { AuthProvider, useAuth } from './lib/AuthContext'
 import LoginScreen from './screens/LoginScreen'
 import HomeScreen from './screens/HomeScreen'
+import PaymentHistoryScreen from './screens/PaymentHistoryScreen'
 import ServicesScreen from './screens/ServicesScreen'
+import VendorDetailScreen from './screens/VendorDetailScreen'
 import CommitteeMenuScreen from './screens/CommitteeMenuScreen'
 import NoticesScreen from './screens/NoticesScreen'
 import CollectionsScreen from './screens/CollectionsScreen'
@@ -16,6 +18,8 @@ import { SafeAreaProvider } from 'react-native-safe-area-context'
 
 const Tab = createMaterialTopTabNavigator()
 const CommitteeStack = createNativeStackNavigator()
+const ServicesStack = createNativeStackNavigator()
+const HomeStack = createNativeStackNavigator()
 
 function CommitteeStackNavigator() {
   return (
@@ -27,6 +31,28 @@ function CommitteeStackNavigator() {
       <CommitteeStack.Screen name="VendorBookings" component={VendorBookingsScreen} options={{ title: 'Vendor Bookings' }} />
       <CommitteeStack.Screen name="ManageCommittee" component={ManageCommitteeScreen} options={{ title: 'Manage Committee' }} />
     </CommitteeStack.Navigator>
+  )
+}
+
+function HomeStackNavigator() {
+  return (
+    <HomeStack.Navigator>
+      <HomeStack.Screen name="HomeMain" component={HomeScreen} options={{ headerShown: false }} />
+      <HomeStack.Screen name="PaymentHistory" component={PaymentHistoryScreen} options={{ title: 'Payment History' }} />
+    </HomeStack.Navigator>
+  )
+}
+
+function ServicesStackNavigator() {
+  return (
+    <ServicesStack.Navigator>
+      <ServicesStack.Screen name="ServicesHome" component={ServicesScreen} options={{ title: 'Services' }} />
+      <ServicesStack.Screen
+        name="VendorDetail"
+        component={VendorDetailScreen}
+        options={({ route }) => ({ title: route.params?.vendor?.name || 'Vendor' })}
+      />
+    </ServicesStack.Navigator>
   )
 }
 
@@ -49,8 +75,8 @@ function MainTabs() {
         tabBarPressColor: 'transparent',
       }}
     >
-      <Tab.Screen name="Home" component={HomeScreen} />
-      <Tab.Screen name="Services" component={ServicesScreen} />
+      <Tab.Screen name="Home" component={HomeStackNavigator} />
+      <Tab.Screen name="Services" component={ServicesStackNavigator} />
       {isCommittee && <Tab.Screen name="Committee" component={CommitteeStackNavigator} />}
     </Tab.Navigator>
   )

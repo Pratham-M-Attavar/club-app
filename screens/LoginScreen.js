@@ -1,13 +1,16 @@
 import { useState, useEffect } from 'react'
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView } from 'react-native'
-import { supabase } from '../lib/supabase'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { supabase } from '../lib/supabase'
+import { colors, spacing, radius, type } from '../lib/theme'
+import Button from '../components/ui/Button'
+
 export default function LoginScreen() {
   const [mode, setMode] = useState('signin') // 'signin' | 'signup'
 
   return (
     <SafeAreaView style={styles.page}>
-      <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 20 }}>
+      <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: spacing.xl }}>
         <View style={styles.card}>
           <Text style={styles.brandName}>Club</Text>
           <Text style={styles.brandSub}>Apartment living, simplified</Text>
@@ -45,12 +48,30 @@ function SignInForm() {
 
   return (
     <View>
-      <TextInput style={styles.input} placeholder="Email" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" />
-      <TextInput style={styles.input} placeholder="Password" value={password} onChangeText={setPassword} secureTextEntry />
+      <TextInput
+        style={styles.input}
+        placeholder="Email"
+        placeholderTextColor={colors.textFaint}
+        value={email}
+        onChangeText={setEmail}
+        autoCapitalize="none"
+        keyboardType="email-address"
+      />
+      <TextInput
+        style={styles.input}
+        placeholder="Password"
+        placeholderTextColor={colors.textFaint}
+        value={password}
+        onChangeText={setPassword}
+        secureTextEntry
+      />
       {error ? <Text style={styles.error}>{error}</Text> : null}
-      <TouchableOpacity style={styles.submit} onPress={handleSubmit} disabled={loading}>
-        <Text style={styles.submitText}>{loading ? 'Please wait…' : 'Sign in'}</Text>
-      </TouchableOpacity>
+      <Button
+        label={loading ? 'Please wait…' : 'Sign in'}
+        onPress={handleSubmit}
+        loading={loading}
+        style={{ alignSelf: 'stretch' }}
+      />
     </View>
   )
 }
@@ -162,6 +183,7 @@ function SignUpWizard() {
           <TextInput
             style={styles.input}
             placeholder="Search for your building…"
+            placeholderTextColor={colors.textFaint}
             value={query}
             onChangeText={setQuery}
             autoFocus
@@ -221,13 +243,16 @@ function SignUpWizard() {
 
       {step === 'details' && (
         <View>
-          <TextInput style={styles.input} placeholder="Full name" value={fullName} onChangeText={setFullName} />
-          <TextInput style={styles.input} placeholder="Email" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" />
-          <TextInput style={styles.input} placeholder="Password" value={password} onChangeText={setPassword} secureTextEntry />
+          <TextInput style={styles.input} placeholder="Full name" placeholderTextColor={colors.textFaint} value={fullName} onChangeText={setFullName} />
+          <TextInput style={styles.input} placeholder="Email" placeholderTextColor={colors.textFaint} value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" />
+          <TextInput style={styles.input} placeholder="Password" placeholderTextColor={colors.textFaint} value={password} onChangeText={setPassword} secureTextEntry />
           {error ? <Text style={styles.error}>{error}</Text> : null}
-          <TouchableOpacity style={styles.submit} onPress={handleSubmit} disabled={loading}>
-            <Text style={styles.submitText}>{loading ? 'Please wait…' : 'Create account'}</Text>
-          </TouchableOpacity>
+          <Button
+            label={loading ? 'Please wait…' : 'Create account'}
+            onPress={handleSubmit}
+            loading={loading}
+            style={{ alignSelf: 'stretch' }}
+          />
           <BackLink onPress={() => setStep('ownership')} />
         </View>
       )}
@@ -235,35 +260,33 @@ function SignUpWizard() {
   )
 }
 
-function BackLink({ onPress }) {
+function BackLink({ onPress, label = '← Back' }) {
   return (
-    <TouchableOpacity onPress={onPress} style={{ marginTop: 12 }}>
-      <Text style={styles.backLink}>← Back</Text>
+    <TouchableOpacity onPress={onPress} style={{ marginTop: spacing.md }}>
+      <Text style={styles.backLink}>{label}</Text>
     </TouchableOpacity>
   )
 }
 
 const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: '#f4f1ea' },
-  card: { backgroundColor: '#fff', borderRadius: 16, padding: 24, borderWidth: 1, borderColor: '#e4ddd0' },
-  brandName: { fontSize: 22, fontWeight: '700', color: '#14262a' },
-  brandSub: { fontSize: 12, color: '#6b7674', marginBottom: 20 },
-  tabRow: { flexDirection: 'row', backgroundColor: '#f4f1ea', borderRadius: 10, padding: 3, marginBottom: 16 },
-  tab: { flex: 1, padding: 10, borderRadius: 8, alignItems: 'center' },
-  tabActive: { flex: 1, padding: 10, borderRadius: 8, alignItems: 'center', backgroundColor: '#b5872f' },
-  tabText: { color: '#6b7674', fontWeight: '600', fontSize: 13 },
-  tabActiveText: { color: '#20200f', fontWeight: '600', fontSize: 13 },
-  input: { borderWidth: 1, borderColor: '#e4ddd0', borderRadius: 9, padding: 12, fontSize: 14, marginBottom: 10 },
-  error: { color: '#b5533c', fontSize: 12.5, marginBottom: 8 },
-  submit: { backgroundColor: '#14262a', padding: 14, borderRadius: 9, alignItems: 'center', marginTop: 4 },
-  submitText: { color: '#fff', fontWeight: '700', fontSize: 14 },
-  breadcrumb: { fontSize: 11.5, color: '#6b7674', marginBottom: 14 },
-  stepLabel: { fontSize: 13.5, fontWeight: '600', marginBottom: 10, color: '#1d2b2a' },
-  listItem: { padding: 12, borderRadius: 8, borderWidth: 1, borderColor: '#e4ddd0', marginBottom: 6 },
-  listItemTitle: { fontWeight: '600', fontSize: 13.5, color: '#1d2b2a' },
-  listItemSub: { fontSize: 11.5, color: '#6b7674' },
-  helpText: { fontSize: 12.5, color: '#6b7674', marginTop: 8 },
-  choiceBtn: { flex: 1, padding: 14, borderRadius: 9, borderWidth: 1, borderColor: '#e4ddd0', alignItems: 'center' },
-  choiceBtnText: { fontWeight: '600', fontSize: 14, color: '#1d2b2a' },
-  backLink: { fontSize: 12, color: '#6b7674' },
+  page: { flex: 1, backgroundColor: colors.paper },
+  card: { backgroundColor: colors.white, borderRadius: radius.lg, padding: spacing.xxl, borderWidth: 1, borderColor: colors.border },
+  brandName: { ...type.display },
+  brandSub: { ...type.bodyMuted, marginBottom: spacing.xl },
+  tabRow: { flexDirection: 'row', backgroundColor: colors.paper, borderRadius: radius.md, padding: 3, marginBottom: spacing.lg },
+  tab: { flex: 1, padding: spacing.md, borderRadius: radius.sm, alignItems: 'center' },
+  tabActive: { flex: 1, padding: spacing.md, borderRadius: radius.sm, alignItems: 'center', backgroundColor: colors.laterite },
+  tabText: { color: colors.textMuted, fontWeight: '600', fontSize: 13 },
+  tabActiveText: { color: colors.white, fontWeight: '600', fontSize: 13 },
+  input: { borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, padding: spacing.md, fontSize: 14, marginBottom: spacing.md, color: colors.ink },
+  error: { color: colors.danger, fontSize: 12.5, marginBottom: spacing.sm },
+  breadcrumb: { ...type.caption, marginBottom: spacing.lg },
+  stepLabel: { ...type.h2, marginBottom: spacing.md },
+  listItem: { padding: spacing.md, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border, marginBottom: spacing.sm },
+  listItemTitle: { fontWeight: '600', fontSize: 13.5, color: colors.ink },
+  listItemSub: { ...type.caption },
+  helpText: { ...type.bodyMuted, marginBottom: spacing.sm },
+  choiceBtn: { flex: 1, padding: spacing.lg, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border, alignItems: 'center' },
+  choiceBtnText: { fontWeight: '600', fontSize: 14, color: colors.ink },
+  backLink: { fontSize: 12, color: colors.textMuted },
 })
