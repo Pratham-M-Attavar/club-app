@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { View, Text, TouchableOpacity, TextInput, StyleSheet, ScrollView, Linking, Alert } from 'react-native'
+import { View, Text, TouchableOpacity, TextInput, StyleSheet, ScrollView, Linking, Alert, Modal, Image } from 'react-native'
 import * as Clipboard from 'expo-clipboard'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { supabase } from '../lib/supabase'
@@ -7,6 +7,7 @@ import { useAuth } from '../lib/AuthContext'
 import { colors, spacing, radius, type, NOTICE_CATEGORY_TONES } from '../lib/theme'
 import { generateReceipt } from '../lib/receipt'
 import { pickAndUploadProof } from '../lib/paymentProof'
+import { pickAndUploadRentProof } from '../lib/rentProof'
 import Card from '../components/ui/Card'
 import Button from '../components/ui/Button'
 import Badge from '../components/ui/Badge'
@@ -36,6 +37,19 @@ export default function HomeScreen({ navigation }) {
   const [flatInfo, setFlatInfo] = useState(null) // { id, maintenance_payer }
   const [counterpart, setCounterpart] = useState(null) // the other owner/tenant on this flat, if any
   const [updatingPayer, setUpdatingPayer] = useState(false)
+
+  // Rent (tenant <-> owner, independent of building maintenance)
+  const [rentPayment, setRentPayment] = useState(null)
+  const [rentLoading, setRentLoading] = useState(true)
+  const [showRentPayPanel, setShowRentPayPanel] = useState(false)
+  const [uploadingRentProof, setUploadingRentProof] = useState(false)
+  const [rentAmountInput, setRentAmountInput] = useState('')
+  const [rentUpiInput, setRentUpiInput] = useState('')
+  const [savingRentSettings, setSavingRentSettings] = useState(false)
+  const [rentSettingsPrefilled, setRentSettingsPrefilled] = useState(false)
+  const [confirmingRent, setConfirmingRent] = useState(false)
+  const [rentProofModalUrl, setRentProofModalUrl] = useState(null)
+  const [viewingRentProof, setViewingRentProof] = useState(false)
 
   function loadTickets() {
     setTicketsLoading(true)
@@ -72,7 +86,7 @@ export default function HomeScreen({ navigation }) {
     if (profile.flat_id) {
       supabase
         .from('flats')
-        .select('id, maintenance_payer')
+        .select('id, maintenance_payer, rent_amount, owner_upi_id')
         .eq('id', profile.flat_id)
         .maybeSingle()
         .then(({ data }) => setFlatInfo(data))
@@ -101,6 +115,62 @@ export default function HomeScreen({ navigation }) {
   useEffect(() => {
     if (profile) loadEverything()
   }, [profile])
+
+  useEffect(() => {
+    if (!profile?.flat_id || !flatInfo) return
+    if (!counterpart) {
+      // No linked owner/tenant on this flat — rent doesn't apply.
+      setRentPayment(null)
+      setRentLoading(false)
+      return
+    }
+    loadOrCreateRent()
+  }, [profile, flatInfo, counterpart])
+
+  useEffect(() => {
+    if (profile?.ownership === 'owner' && flatInfo && !rentSettingsPrefilled) {
+      setRentAmountInput(flatInfo.rent_amount ? String(flatInfo.rent_amount) : '')
+      setRentUpiInput(flatInfo.owner_upi_id || '')
+      setRentSettingsPrefilled(true)
+    }
+  }, [profile, flatInfo, rentSettingsPrefilled])
+
+  async function loadOrCreateRent() {
+    setRentLoading(true)
+    const firstOfMonth = new Date()
+    firstOfMonth.setDate(1)
+    const monthStr = firstOfMonth.toISOString().slice(0, 10)
+
+    const tenantId = profile.ownership === 'tenant' ? profile.id : counterpart.id
+    const ownerId = profile.ownership === 'owner' ? profile.id : counterpart.id
+
+    if (profile.ownership === 'tenant') {
+      // Tenant is responsible for ensuring this month's row exists.
+      await supabase.from('rent_payments').upsert(
+        {
+          flat_id: profile.flat_id,
+          tenant_id: tenantId,
+          owner_id: ownerId,
+          building_id: profile.building_id,
+          month: monthStr,
+          amount: flatInfo.rent_amount || null,
+          status: 'pending',
+        },
+        { onConflict: 'flat_id,month', ignoreDuplicates: true }
+      )
+    }
+
+    const { data, error } = await supabase
+      .from('rent_payments')
+      .select('*')
+      .eq('flat_id', profile.flat_id)
+      .eq('month', monthStr)
+      .maybeSingle()
+
+    if (error) console.log('loadOrCreateRent error:', error.message)
+    setRentPayment(data)
+    setRentLoading(false)
+  }
 
   async function handleRaiseTicket() {
     if (!ticketDescription.trim()) return
@@ -144,6 +214,85 @@ export default function HomeScreen({ navigation }) {
       Alert.alert('Could not upload proof', err.message)
     }
     setUploadingProof(false)
+  }
+
+  async function saveRentSettings() {
+    if (!flatInfo) return
+    const amount = parseFloat(rentAmountInput)
+    if (!amount || amount <= 0) {
+      Alert.alert('Enter a valid amount', 'Rent amount should be a positive number.')
+      return
+    }
+    if (!rentUpiInput.trim()) {
+      Alert.alert('Enter your UPI ID', "So your tenant can pay you directly.")
+      return
+    }
+    setSavingRentSettings(true)
+    const { error } = await supabase
+      .from('flats')
+      .update({ rent_amount: amount, owner_upi_id: rentUpiInput.trim() })
+      .eq('id', flatInfo.id)
+    setSavingRentSettings(false)
+    if (error) {
+      Alert.alert('Could not save', error.message)
+      return
+    }
+    setFlatInfo({ ...flatInfo, rent_amount: amount, owner_upi_id: rentUpiInput.trim() })
+    Alert.alert('Saved', 'Rent settings updated.')
+  }
+
+  function openRentUpiApp() {
+    if (!flatInfo?.owner_upi_id || !rentPayment?.amount) return
+    const url = `upi://pay?pa=${flatInfo.owner_upi_id}&pn=${encodeURIComponent(counterpart?.full_name || 'Owner')}&am=${rentPayment.amount}&cu=INR&tn=${encodeURIComponent('Rent - Flat ' + profile.flat_number)}`
+    Linking.openURL(url).catch(() => Alert.alert('No UPI app found', 'Install GPay or PhonePe to pay directly, or copy the UPI ID instead.'))
+  }
+
+  async function copyRentUpiId() {
+    await Clipboard.setStringAsync(flatInfo.owner_upi_id)
+    Alert.alert('Copied', "Owner's UPI ID copied to clipboard")
+  }
+
+  async function handleUploadRentProof() {
+    setUploadingRentProof(true)
+    try {
+      const path = await pickAndUploadRentProof(rentPayment, profile)
+      if (path) {
+        Alert.alert('Uploaded', 'Your rent payment proof was submitted. Your owner will confirm it soon.')
+        loadOrCreateRent()
+      }
+    } catch (err) {
+      Alert.alert('Could not upload proof', err.message)
+    }
+    setUploadingRentProof(false)
+  }
+
+  async function viewRentProof() {
+    if (!rentPayment?.proof_url) return
+    setViewingRentProof(true)
+    const { data, error } = await supabase.storage
+      .from('payment-proofs')
+      .createSignedUrl(rentPayment.proof_url, 120)
+    setViewingRentProof(false)
+    if (error) {
+      Alert.alert('Could not open proof', error.message)
+      return
+    }
+    setRentProofModalUrl(data.signedUrl)
+  }
+
+  async function confirmRent() {
+    if (!rentPayment) return
+    setConfirmingRent(true)
+    const { error } = await supabase
+      .from('rent_payments')
+      .update({ status: 'paid', paid_at: new Date().toISOString() })
+      .eq('id', rentPayment.id)
+    setConfirmingRent(false)
+    if (error) {
+      Alert.alert('Could not confirm', error.message)
+      return
+    }
+    loadOrCreateRent()
   }
 
   async function setMaintenancePayer(payer) {
@@ -293,6 +442,127 @@ export default function HomeScreen({ navigation }) {
         </Card>
       )}
 
+      {/* Rent — only relevant if a linked owner/tenant exists on this flat */}
+      {!rentLoading && counterpart && (
+        <Card>
+          <Text style={type.eyebrow}>Rent</Text>
+
+          {profile.ownership === 'owner' ? (
+            <>
+              <Text style={[type.bodyMuted, { marginBottom: spacing.sm }]}>
+                Set the monthly rent and your UPI ID so {counterpart.full_name} can pay you directly.
+              </Text>
+              <TextInput
+                style={styles.rentInput}
+                placeholder="Monthly rent amount (₹)"
+                placeholderTextColor={colors.textFaint}
+                value={rentAmountInput}
+                onChangeText={setRentAmountInput}
+                keyboardType="numeric"
+              />
+              <TextInput
+                style={styles.rentInput}
+                placeholder="Your UPI ID (e.g. name@upi)"
+                placeholderTextColor={colors.textFaint}
+                value={rentUpiInput}
+                onChangeText={setRentUpiInput}
+                autoCapitalize="none"
+              />
+              <Button
+                label={savingRentSettings ? 'Saving…' : 'Save rent settings'}
+                onPress={saveRentSettings}
+                loading={savingRentSettings}
+                variant="outline"
+                style={{ marginBottom: spacing.md }}
+              />
+
+              {rentPayment ? (
+                <View style={styles.rentStatusBox}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <Text style={styles.rentAmount}>₹{rentPayment.amount}</Text>
+                    <Badge
+                      label={rentPayment.status}
+                      tone={rentPayment.status === 'paid' ? 'success' : rentPayment.status === 'submitted' ? 'warning' : 'cove'}
+                    />
+                  </View>
+
+                  {rentPayment.status === 'submitted' && (
+                    <Button
+                      label={viewingRentProof ? 'Opening…' : 'View proof'}
+                      onPress={viewRentProof}
+                      disabled={viewingRentProof}
+                      variant="outline"
+                      style={{ marginTop: spacing.sm }}
+                    />
+                  )}
+
+                  {rentPayment.status !== 'paid' && (
+                    <Button
+                      label={confirmingRent ? 'Confirming…' : 'Confirm rent received'}
+                      onPress={confirmRent}
+                      loading={confirmingRent}
+                      variant="primary"
+                      style={{ marginTop: spacing.sm, alignSelf: 'stretch' }}
+                    />
+                  )}
+                </View>
+              ) : (
+                <Text style={type.bodyMuted}>No rent recorded yet this month.</Text>
+              )}
+            </>
+          ) : (
+            <>
+              <Text style={styles.rentAmount}>₹{rentPayment?.amount ?? flatInfo?.rent_amount ?? '—'}</Text>
+              <Badge
+                label={rentPayment?.status || 'pending'}
+                tone={rentPayment?.status === 'paid' ? 'success' : rentPayment?.status === 'submitted' ? 'warning' : 'cove'}
+              />
+
+              {rentPayment?.status === 'paid' ? (
+                <Text style={[type.bodyMuted, { marginTop: spacing.md }]}>Paid for this month.</Text>
+              ) : rentPayment?.status === 'submitted' ? (
+                <Text style={[type.bodyMuted, { marginTop: spacing.md }]}>
+                  Proof submitted — awaiting confirmation from {counterpart.full_name}.
+                </Text>
+              ) : !flatInfo?.owner_upi_id ? (
+                <Text style={[type.bodyMuted, { marginTop: spacing.md }]}>
+                  Your owner hasn't set up rent details yet.
+                </Text>
+              ) : (
+                <View style={{ marginTop: spacing.md }}>
+                  <Button
+                    label={showRentPayPanel ? 'Hide payment details' : 'Pay now →'}
+                    onPress={() => setShowRentPayPanel(!showRentPayPanel)}
+                    variant="primary"
+                  />
+
+                  {showRentPayPanel && (
+                    <View style={styles.rentPayPanel}>
+                      <Text style={styles.rentPayPanelLabel}>Pay via UPI to:</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
+                        <Text style={styles.rentUpiText}>{flatInfo.owner_upi_id}</Text>
+                        <TouchableOpacity style={styles.rentCopyBtn} onPress={copyRentUpiId}>
+                          <Text style={styles.rentCopyBtnText}>Copy</Text>
+                        </TouchableOpacity>
+                      </View>
+                      <Button label="Open in UPI app →" onPress={openRentUpiApp} variant="primary" />
+                    </View>
+                  )}
+
+                  <Button
+                    label={uploadingRentProof ? 'Uploading…' : 'Upload payment proof'}
+                    onPress={handleUploadRentProof}
+                    loading={uploadingRentProof}
+                    variant="outline"
+                    style={{ marginTop: spacing.md }}
+                  />
+                </View>
+              )}
+            </>
+          )}
+        </Card>
+      )}
+
       {/* Tickets */}
       <Card>
         <Text style={type.eyebrow}>Your open requests</Text>
@@ -385,6 +655,23 @@ export default function HomeScreen({ navigation }) {
 
       <Button label="Sign out" onPress={signOut} variant="outline" style={{ alignSelf: 'stretch', marginTop: spacing.xs, marginBottom: spacing.xxl }} />
     </ScrollView>
+
+    <Modal
+      visible={!!rentProofModalUrl}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setRentProofModalUrl(null)}
+    >
+      <View style={styles.modalOverlay}>
+        <TouchableOpacity style={StyleSheet.absoluteFillObject} onPress={() => setRentProofModalUrl(null)} />
+        {rentProofModalUrl && (
+          <Image source={{ uri: rentProofModalUrl }} style={styles.modalImage} resizeMode="contain" />
+        )}
+        <TouchableOpacity style={styles.modalCloseBtn} onPress={() => setRentProofModalUrl(null)}>
+          <Text style={styles.modalCloseBtnText}>Close</Text>
+        </TouchableOpacity>
+      </View>
+    </Modal>
     </SafeAreaView>
   )
 }
@@ -416,4 +703,18 @@ const styles = StyleSheet.create({
   categoryChipText: { fontSize: 12, color: colors.ink },
   categoryChipTextActive: { fontSize: 12, color: colors.white },
   textArea: { borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md, fontSize: 13, minHeight: 70, textAlignVertical: 'top', marginBottom: spacing.sm, color: colors.ink },
+
+  rentInput: { borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, padding: spacing.md, fontSize: 14, marginBottom: spacing.sm, color: colors.ink, backgroundColor: colors.white },
+  rentAmount: { fontSize: 20, fontWeight: '700', color: colors.ink },
+  rentStatusBox: { borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.md, marginTop: spacing.sm },
+  rentPayPanel: { marginTop: spacing.md, backgroundColor: colors.paperDim, borderRadius: radius.md, padding: spacing.md },
+  rentPayPanelLabel: { fontSize: 11, color: colors.textMuted, marginBottom: 6 },
+  rentUpiText: { backgroundColor: colors.white, borderWidth: 1, borderColor: colors.border, color: colors.ink, padding: 8, borderRadius: 6, fontSize: 13, marginRight: 8 },
+  rentCopyBtn: { borderWidth: 1, borderColor: colors.border, borderRadius: 6, paddingVertical: 5, paddingHorizontal: 10 },
+  rentCopyBtnText: { color: colors.ink, fontSize: 11.5 },
+
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', alignItems: 'center', justifyContent: 'center' },
+  modalImage: { width: '92%', height: '75%' },
+  modalCloseBtn: { marginTop: 20, backgroundColor: 'rgba(255,255,255,0.15)', paddingVertical: 10, paddingHorizontal: 24, borderRadius: 8 },
+  modalCloseBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
 })

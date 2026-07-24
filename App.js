@@ -40,8 +40,16 @@ function CommitteeStackNavigator() {
 function HomeStackNavigator() {
   return (
     <HomeStack.Navigator>
-      <HomeStack.Screen name="HomeMain" component={HomeScreen} options={{ headerShown: false }} />
-      <HomeStack.Screen name="PaymentHistory" component={PaymentHistoryScreen} options={{ title: 'Payment History' }} />
+      <HomeStack.Screen
+        name="HomeMain"
+        component={HomeScreen}
+        options={{ headerShown: false }}
+      />
+      <HomeStack.Screen
+        name="PaymentHistory"
+        component={PaymentHistoryScreen}
+        options={{ title: 'Payment History' }}
+      />
     </HomeStack.Navigator>
   )
 }
@@ -49,11 +57,17 @@ function HomeStackNavigator() {
 function ServicesStackNavigator() {
   return (
     <ServicesStack.Navigator>
-      <ServicesStack.Screen name="ServicesHome" component={ServicesScreen} options={{ title: 'Services' }} />
+      <ServicesStack.Screen
+        name="ServicesHome"
+        component={ServicesScreen}
+        options={{ title: 'Services' }}
+      />
       <ServicesStack.Screen
         name="VendorDetail"
         component={VendorDetailScreen}
-        options={({ route }) => ({ title: route.params?.vendor?.name || 'Vendor' })}
+        options={({ route }) => ({
+          title: route.params?.vendor?.name || 'Vendor',
+        })}
       />
     </ServicesStack.Navigator>
   )
@@ -70,17 +84,32 @@ function MainTabs() {
         animationEnabled: true,
         tabBarShowLabel: true,
         tabBarShowIcon: false,
-        tabBarIndicatorStyle: { height: 0 }, // hides the default top-tab underline bar
+        tabBarIndicatorStyle: { height: 0 },
         tabBarActiveTintColor: '#14262a',
         tabBarInactiveTintColor: '#9aa5a3',
-        tabBarStyle: { backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#e4ddd0', elevation: 0, shadowOpacity: 0 },
-        tabBarLabelStyle: { fontSize: 12, fontWeight: '600', textTransform: 'none' },
+        tabBarStyle: {
+          backgroundColor: '#fff',
+          borderTopWidth: 1,
+          borderTopColor: '#e4ddd0',
+          elevation: 0,
+          shadowOpacity: 0,
+        },
+        tabBarLabelStyle: {
+          fontSize: 12,
+          fontWeight: '600',
+          textTransform: 'none',
+        },
         tabBarPressColor: 'transparent',
       }}
     >
       <Tab.Screen name="Home" component={HomeStackNavigator} />
       <Tab.Screen name="Services" component={ServicesStackNavigator} />
-      {isCommittee && <Tab.Screen name="Committee" component={CommitteeStackNavigator} />}
+      {isCommittee && (
+        <Tab.Screen
+          name="Committee"
+          component={CommitteeStackNavigator}
+        />
+      )}
     </Tab.Navigator>
   )
 }
@@ -104,8 +133,6 @@ function Root() {
     )
   }
 
-  // Session exists but profile hasn't finished loading yet — brief moment
-  // right after login/signup. Don't flash the approval screen during this.
   if (!profile) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>

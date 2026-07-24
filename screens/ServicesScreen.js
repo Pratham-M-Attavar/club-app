@@ -49,6 +49,14 @@ export default function ServicesScreen({ navigation }) {
       <Text style={type.display}>Services</Text>
       <Text style={[type.bodyMuted, { marginBottom: spacing.lg }]}>Trusted vendors for your society</Text>
 
+      <TouchableOpacity onPress={() => navigation.navigate('EmergencyContacts')}>
+        <View style={styles.emergencyBanner}>
+          <Text style={styles.emergencyIcon}>🚨</Text>
+          <Text style={styles.emergencyText}>Emergency Contacts</Text>
+          <Text style={styles.emergencyChevron}>›</Text>
+        </View>
+      </TouchableOpacity>
+
       <View style={styles.searchBar}>
         <Ionicons name="search-outline" size={16} color={colors.textFaint} />
         <TextInput
@@ -141,6 +149,14 @@ function StarRating({ rating }) {
 
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: colors.paper },
+  emergencyBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
+    backgroundColor: colors.lateriteSoft, borderRadius: radius.md,
+    padding: spacing.md, marginBottom: spacing.lg,
+  },
+  emergencyIcon: { fontSize: 18 },
+  emergencyText: { flex: 1, fontSize: 14, fontWeight: '700', color: colors.lateriteDark },
+  emergencyChevron: { fontSize: 20, color: colors.lateriteDark },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
