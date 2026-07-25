@@ -2,14 +2,15 @@ import { useEffect, useState } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator } from 'react-native'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
+import { colors, spacing, radius } from '../lib/theme'
 
 const STATUS_OPTIONS = ['pending', 'assigned', 'in_progress', 'done']
 
 const STATUS_COLORS = {
-  pending: { bg: '#f3ddd5', text: '#b5533c' },
-  assigned: { bg: '#e8d9b8', text: '#8a641e' },
-  in_progress: { bg: '#e8d9b8', text: '#8a641e' },
-  done: { bg: '#dfe9e6', text: '#3a6b63' },
+  pending: { bg: '#7F1D1D', text: '#FECACA' },
+  assigned: { bg: '#78350F', text: '#FDE68A' },
+  in_progress: { bg: '#78350F', text: '#FDE68A' },
+  done: { bg: '#14532D', text: '#BBF7D0' },
 }
 
 export default function TicketsScreen() {
@@ -44,7 +45,7 @@ export default function TicketsScreen() {
   if (loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator />
+        <ActivityIndicator color={colors.accent} />
         <Text style={styles.muted}>Loading tickets…</Text>
       </View>
     )
@@ -53,7 +54,7 @@ export default function TicketsScreen() {
   const visible = filter === 'open' ? tickets.filter(t => t.status !== 'done') : tickets
 
   return (
-    <ScrollView style={styles.page} contentContainerStyle={{ padding: 20 }}>
+    <ScrollView style={styles.page} contentContainerStyle={styles.contentContainer}>
       <View style={styles.headerRow}>
         <Text style={styles.title}>Tickets</Text>
         <View style={styles.filterRow}>
@@ -75,7 +76,7 @@ export default function TicketsScreen() {
       {visible.length === 0 && <Text style={styles.muted}>Nothing here — nice and quiet.</Text>}
 
       {visible.map(t => {
-        const colors = STATUS_COLORS[t.status] || STATUS_COLORS.pending
+        const chipColors = STATUS_COLORS[t.status] || STATUS_COLORS.pending
         return (
           <View key={t.id} style={styles.card}>
             <Text style={styles.cardTitle}>
@@ -88,8 +89,8 @@ export default function TicketsScreen() {
             </Text>
 
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 10 }}>
-              <View style={[styles.statusChip, { backgroundColor: colors.bg }]}>
-                <Text style={[styles.statusText, { color: colors.text }]}>{t.status.replace('_', ' ')}</Text>
+              <View style={[styles.statusChip, { backgroundColor: chipColors.bg }]}>
+                <Text style={[styles.statusText, { color: chipColors.text }]}>{t.status.replace('_', ' ')}</Text>
               </View>
 
               <View style={styles.statusOptionsRow}>
@@ -114,29 +115,30 @@ export default function TicketsScreen() {
 }
 
 const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: '#f4f1ea' },
-  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#f4f1ea' },
-  muted: { fontSize: 12, color: '#6b7674', marginTop: 8 },
+  page: { flex: 1, backgroundColor: colors.bg },
+  contentContainer: { paddingHorizontal: spacing.xl, paddingTop: spacing.lg, paddingBottom: spacing.xxl },
+  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg },
+  muted: { fontSize: 12, color: colors.textSecondary, marginTop: 8 },
 
-  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  title: { fontSize: 20, fontWeight: '700', color: '#14262a' },
+  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.lg },
+  title: { fontSize: 20, fontWeight: '700', color: colors.text },
   filterRow: { flexDirection: 'row', gap: 6 },
-  filterBtn: { borderWidth: 1, borderColor: '#e4ddd0', borderRadius: 8, paddingVertical: 6, paddingHorizontal: 12 },
-  filterBtnActive: { backgroundColor: '#14262a', borderRadius: 8, paddingVertical: 6, paddingHorizontal: 12 },
-  filterBtnText: { fontSize: 12, color: '#1d2b2a', fontWeight: '600' },
-  filterBtnTextActive: { fontSize: 12, color: '#fff', fontWeight: '600' },
+  filterBtn: { borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, paddingVertical: 6, paddingHorizontal: 12 },
+  filterBtnActive: { backgroundColor: colors.accent, borderRadius: radius.md, paddingVertical: 6, paddingHorizontal: 12 },
+  filterBtnText: { fontSize: 12, color: colors.textSecondary, fontWeight: '600' },
+  filterBtnTextActive: { fontSize: 12, color: colors.text, fontWeight: '600' },
 
-  card: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#e4ddd0', borderRadius: 12, padding: 14, marginBottom: 10 },
-  cardTitle: { fontWeight: '700', fontSize: 13.5, color: '#1d2b2a' },
-  cardDesc: { fontSize: 12.5, color: '#4a5654', marginTop: 4 },
-  cardMeta: { fontSize: 11, color: '#6b7674', marginTop: 6 },
+  card: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, padding: 14, marginBottom: 10 },
+  cardTitle: { fontWeight: '700', fontSize: 13.5, color: colors.text },
+  cardDesc: { fontSize: 12.5, color: colors.textSecondary, marginTop: 4 },
+  cardMeta: { fontSize: 11, color: colors.textTertiary, marginTop: 6 },
 
-  statusChip: { paddingVertical: 3, paddingHorizontal: 10, borderRadius: 20 },
+  statusChip: { paddingVertical: 3, paddingHorizontal: 10, borderRadius: radius.pill },
   statusText: { fontSize: 11, fontWeight: '700' },
 
   statusOptionsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, flex: 1, justifyContent: 'flex-end' },
-  statusOption: { borderWidth: 1, borderColor: '#e4ddd0', borderRadius: 6, paddingVertical: 4, paddingHorizontal: 8 },
-  statusOptionActive: { backgroundColor: '#14262a', borderRadius: 6, paddingVertical: 4, paddingHorizontal: 8 },
-  statusOptionText: { fontSize: 10.5, color: '#1d2b2a' },
-  statusOptionTextActive: { fontSize: 10.5, color: '#fff' },
+  statusOption: { borderWidth: 1, borderColor: colors.border, borderRadius: 6, paddingVertical: 4, paddingHorizontal: 8 },
+  statusOptionActive: { backgroundColor: colors.surfaceElevated, borderRadius: 6, paddingVertical: 4, paddingHorizontal: 8 },
+  statusOptionText: { fontSize: 10.5, color: colors.textSecondary },
+  statusOptionTextActive: { fontSize: 10.5, color: colors.text },
 })

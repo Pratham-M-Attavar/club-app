@@ -4,8 +4,9 @@ import { Ionicons } from '@expo/vector-icons'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 import Screen from '../components/Screen'
-import { Card, EmptyState } from '../components/UI'
-import { colors, spacing, typography } from '../lib/theme'
+import Card from '../components/ui/Card'
+import EmptyState from '../components/ui/EmptyState'
+import { colors, spacing, type } from '../lib/theme'
 
 export default function DirectoryScreen({ navigation }) {
   const { profile } = useAuth()
@@ -38,7 +39,7 @@ export default function DirectoryScreen({ navigation }) {
   return (
     <Screen refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await load(); setRefreshing(false) }}>
       <TouchableOpacity style={styles.back} onPress={() => navigation.goBack()}>
-        <Ionicons name="arrow-back" size={20} color={colors.primary} />
+        <Ionicons name="arrow-back" size={20} color={colors.accent} />
         <Text style={styles.backText}>Back</Text>
       </TouchableOpacity>
 
@@ -51,7 +52,7 @@ export default function DirectoryScreen({ navigation }) {
             <Text style={styles.optInTitle}>Show me in directory</Text>
             <Text style={styles.optInSub}>Your flat and name will be visible to residents</Text>
           </View>
-          <Switch value={showPhone} onValueChange={toggleVisibility} trackColor={{ true: colors.primary }} />
+          <Switch value={showPhone} onValueChange={toggleVisibility} trackColor={{ true: colors.accent }} />
         </View>
       </Card>
 
@@ -78,9 +79,9 @@ export default function DirectoryScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   back: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: spacing.md },
-  backText: { fontSize: 14, fontWeight: '600', color: colors.primary },
-  title: { ...typography.h1, color: colors.primary },
-  sub: { ...typography.caption, marginBottom: spacing.lg },
+  backText: { fontSize: 14, fontWeight: '600', color: colors.accent },
+  title: { ...type.h1, color: colors.accent },
+  sub: { ...type.caption, marginBottom: spacing.lg },
   optIn: { marginBottom: spacing.lg },
   optInRow: { flexDirection: 'row', alignItems: 'center' },
   optInTitle: { fontSize: 14, fontWeight: '700', color: colors.text },

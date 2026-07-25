@@ -1,4 +1,5 @@
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native'
+import { colors, spacing, radius } from '../lib/theme'
 
 const MENU_ITEMS = [
   { key: 'PendingResidents', label: 'Pending Residents', icon: '🛎️' },
@@ -10,20 +11,25 @@ const MENU_ITEMS = [
 ]
 
 export default function CommitteeMenuScreen({ navigation }) {
+  const c = colors
+
   return (
-    <ScrollView style={styles.page} contentContainerStyle={{ padding: 20 }}>
-      <Text style={styles.title}>Committee</Text>
-      <Text style={styles.sub}>Manage your building</Text>
+    <ScrollView style={styles.page} contentContainerStyle={styles.contentContainer}>
+      <View style={[styles.headerCard, { borderColor: c.border }] }>
+        <Text style={styles.sub}>Manage your building in one place.</Text>
+      </View>
 
       {MENU_ITEMS.map(item => (
         <TouchableOpacity
           key={item.key}
-          style={styles.menuItem}
+          style={[styles.menuItem, { backgroundColor: c.surface, borderColor: c.border }]}
           onPress={() => navigation.navigate(item.key)}
         >
-          <Text style={styles.icon}>{item.icon}</Text>
-          <Text style={styles.label}>{item.label}</Text>
-          <Text style={styles.chevron}>›</Text>
+          <View style={[styles.iconWrap, { backgroundColor: c.accentSoft }] }>
+            <Text style={styles.icon}>{item.icon}</Text>
+          </View>
+          <Text style={[styles.label, { color: c.text }]}>{item.label}</Text>
+          <Text style={[styles.chevron, { color: c.textTertiary }]}>›</Text>
         </TouchableOpacity>
       ))}
     </ScrollView>
@@ -31,14 +37,33 @@ export default function CommitteeMenuScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: '#f4f1ea' },
-  title: { fontSize: 22, fontWeight: '700', color: '#14262a' },
-  sub: { fontSize: 13, color: '#6b7674', marginTop: 2, marginBottom: 20 },
-  menuItem: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff',
-    borderWidth: 1, borderColor: '#e4ddd0', borderRadius: 12, padding: 16, marginBottom: 10,
+  page: { flex: 1, backgroundColor: colors.bg },
+  contentContainer: { paddingHorizontal: spacing.xl, paddingTop: spacing.lg, paddingBottom: spacing.xxl },
+  headerCard: {
+    backgroundColor: colors.surfaceElevated,
+    borderWidth: 1,
+    borderRadius: radius.xl,
+    padding: spacing.lg,
+    marginBottom: spacing.lg,
   },
-  icon: { fontSize: 18, marginRight: 12 },
-  label: { flex: 1, fontSize: 14, fontWeight: '600', color: '#1d2b2a' },
-  chevron: { fontSize: 18, color: '#6b7674' },
+  sub: { fontSize: 13, color: colors.textSecondary },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: radius.lg,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
+  },
+  iconWrap: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.md,
+  },
+  icon: { fontSize: 18 },
+  label: { flex: 1, fontSize: 15, fontWeight: '600' },
+  chevron: { fontSize: 20, fontWeight: '600' },
 })

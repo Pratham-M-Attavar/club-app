@@ -4,6 +4,7 @@ import * as FileSystem from 'expo-file-system/legacy'
 import * as Sharing from 'expo-sharing'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
+import { colors, spacing, radius, type } from '../lib/theme'
 
 const DEFAULT_MAINTENANCE = 2800
 const DEFAULT_SINKING_FUND = 300
@@ -134,7 +135,7 @@ export default function CollectionsScreen() {
   if (loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator />
+        <ActivityIndicator color={colors.accent} />
         <Text style={styles.muted}>Loading collections…</Text>
       </View>
     )
@@ -162,9 +163,11 @@ export default function CollectionsScreen() {
   ]
 
   return (
-    <ScrollView style={styles.page} contentContainerStyle={{ padding: 20 }}>
-      <Text style={styles.title}>Collections — this month</Text>
-      <Text style={styles.sub}>Collected ₹{totalCollected} · Pending ₹{totalPending}</Text>
+    <ScrollView style={styles.page} contentContainerStyle={styles.contentContainer}>
+      <View style={styles.heroCard}>
+        <Text style={styles.title}>Collections — this month</Text>
+        <Text style={styles.sub}>Collected ₹{totalCollected} · Pending ₹{totalPending}</Text>
+      </View>
 
       <TouchableOpacity style={styles.generateBtn} onPress={generateDuesForAll} disabled={generating}>
         <Text style={styles.generateBtnText}>
@@ -180,7 +183,7 @@ export default function CollectionsScreen() {
       <TextInput
         style={styles.searchInput}
         placeholder="Search by flat number…"
-        placeholderTextColor="#a39c8e"
+        placeholderTextColor={colors.textFaint}
         value={searchQuery}
         onChangeText={setSearchQuery}
       />
@@ -279,50 +282,50 @@ export default function CollectionsScreen() {
 }
 
 const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: '#f4f1ea' },
-  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#f4f1ea' },
-  title: { fontSize: 20, fontWeight: '700', color: '#14262a' },
-  sub: { fontSize: 13, color: '#6b7674', marginTop: 4, marginBottom: 16 },
-  muted: { fontSize: 12, color: '#6b7674', marginTop: 8 },
-  error: { color: '#b5533c', fontSize: 12.5, marginBottom: 12 },
+  page: { flex: 1, backgroundColor: colors.bg },
+  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg },
+  title: { fontSize: 20, fontWeight: '700', color: colors.text },
+  sub: { fontSize: 13, color: colors.textSecondary, marginTop: 4, marginBottom: 16 },
+  muted: { fontSize: 12, color: colors.textSecondary, marginTop: 8 },
+  error: { color: colors.danger, fontSize: 12.5, marginBottom: 12 },
 
-  generateBtn: { backgroundColor: '#14262a', padding: 13, borderRadius: 9, alignItems: 'center', marginBottom: 20 },
-  generateBtnText: { color: '#fff', fontWeight: '700', fontSize: 13 },
+  generateBtn: { backgroundColor: colors.accent, padding: 13, borderRadius: radius.md, alignItems: 'center', marginBottom: 20 },
+  generateBtnText: { color: colors.text, fontWeight: '700', fontSize: 13 },
 
-  exportBtn: { borderWidth: 1, borderColor: '#245A73', padding: 11, borderRadius: 9, alignItems: 'center', marginBottom: 14 },
-  exportBtnText: { color: '#245A73', fontWeight: '700', fontSize: 13 },
+  exportBtn: { borderWidth: 1, borderColor: colors.borderStrong, padding: 11, borderRadius: radius.md, alignItems: 'center', marginBottom: 14 },
+  exportBtnText: { color: colors.text, fontWeight: '700', fontSize: 13 },
 
   searchInput: {
-    backgroundColor: '#fff', borderWidth: 1, borderColor: '#e4ddd0', borderRadius: 9,
-    padding: 11, fontSize: 13.5, color: '#1d2b2a', marginBottom: 10,
+    backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md,
+    padding: 11, fontSize: 13.5, color: colors.text, marginBottom: 10,
   },
   filterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
-  filterChip: { borderWidth: 1, borderColor: '#e4ddd0', borderRadius: 20, paddingVertical: 6, paddingHorizontal: 12, backgroundColor: '#fff' },
-  filterChipActive: { backgroundColor: '#245A73', borderRadius: 20, paddingVertical: 6, paddingHorizontal: 12 },
-  filterChipText: { fontSize: 12, color: '#1d2b2a', fontWeight: '600' },
-  filterChipTextActive: { fontSize: 12, color: '#fff', fontWeight: '600' },
+  filterChip: { borderWidth: 1, borderColor: colors.border, borderRadius: radius.pill, paddingVertical: 6, paddingHorizontal: 12, backgroundColor: colors.surface },
+  filterChipActive: { backgroundColor: colors.accent, borderRadius: radius.pill, paddingVertical: 6, paddingHorizontal: 12 },
+  filterChipText: { fontSize: 12, color: colors.textSecondary, fontWeight: '600' },
+  filterChipTextActive: { fontSize: 12, color: colors.text, fontWeight: '600' },
 
   row: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff',
-    borderWidth: 1, borderColor: '#e4ddd0', borderRadius: 12, padding: 14, marginBottom: 10,
+    flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface,
+    borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, padding: 14, marginBottom: 10,
   },
-  flatNumber: { fontWeight: '700', fontSize: 13.5, color: '#1d2b2a' },
-  amount: { fontSize: 12.5, color: '#6b7674', marginTop: 2 },
+  flatNumber: { fontWeight: '700', fontSize: 13.5, color: colors.text },
+  amount: { fontSize: 12.5, color: colors.textSecondary, marginTop: 2 },
 
-  statusChip: { paddingVertical: 3, paddingHorizontal: 10, borderRadius: 20 },
-  statusPaid: { backgroundColor: '#dfe9e6' },
-  statusPending: { backgroundColor: '#f3ddd5' },
-  statusSubmitted: { backgroundColor: '#DCE7EA' },
+  statusChip: { paddingVertical: 3, paddingHorizontal: 10, borderRadius: radius.pill },
+  statusPaid: { backgroundColor: colors.successBg },
+  statusPending: { backgroundColor: colors.dangerBg },
+  statusSubmitted: { backgroundColor: colors.warningBg },
   statusText: { fontSize: 11, fontWeight: '700' },
-  statusTextPaid: { color: '#3a6b63' },
-  statusTextPending: { color: '#b5533c' },
-  statusTextSubmitted: { color: '#245A73' },
+  statusTextPaid: { color: colors.success },
+  statusTextPending: { color: colors.danger },
+  statusTextSubmitted: { color: colors.warning },
 
-  viewProofBtn: { marginTop: 6, borderWidth: 1, borderColor: '#245A73', paddingVertical: 5, paddingHorizontal: 12, borderRadius: 6 },
-  viewProofBtnText: { color: '#245A73', fontSize: 11.5, fontWeight: '700' },
+  viewProofBtn: { marginTop: 6, borderWidth: 1, borderColor: colors.borderStrong, paddingVertical: 5, paddingHorizontal: 12, borderRadius: 6 },
+  viewProofBtnText: { color: colors.text, fontSize: 11.5, fontWeight: '700' },
 
-  markPaidBtn: { marginTop: 6, backgroundColor: '#e8d9b8', paddingVertical: 5, paddingHorizontal: 12, borderRadius: 6 },
-  markPaidBtnText: { color: '#8a641e', fontSize: 11.5, fontWeight: '700' },
+  markPaidBtn: { marginTop: 6, backgroundColor: colors.surfaceElevated, paddingVertical: 5, paddingHorizontal: 12, borderRadius: 6 },
+  markPaidBtnText: { color: colors.accentPressed, fontSize: 11.5, fontWeight: '700' },
 
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', alignItems: 'center', justifyContent: 'center' },
   modalCloseArea: { ...StyleSheet.absoluteFillObject },

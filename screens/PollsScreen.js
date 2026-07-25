@@ -4,8 +4,10 @@ import { Ionicons } from '@expo/vector-icons'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 import Screen from '../components/Screen'
-import { Card, EmptyState, PrimaryButton, StatusBadge } from '../components/UI'
-import { colors, spacing, typography } from '../lib/theme'
+import Card from '../components/ui/Card'
+import EmptyState from '../components/ui/EmptyState'
+import Button from '../components/ui/Button'
+import { colors, spacing, type } from '../lib/theme'
 import { formatDate } from '../lib/format'
 
 export default function PollsScreen({ navigation }) {
@@ -72,7 +74,7 @@ export default function PollsScreen({ navigation }) {
   return (
     <Screen refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await load(); setRefreshing(false) }}>
       <TouchableOpacity style={styles.back} onPress={() => navigation.goBack()}>
-        <Ionicons name="arrow-back" size={20} color={colors.primary} />
+        <Ionicons name="arrow-back" size={20} color={colors.accent} />
         <Text style={styles.backText}>Back</Text>
       </TouchableOpacity>
 
@@ -125,9 +127,9 @@ export default function PollsScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   back: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: spacing.md },
-  backText: { fontSize: 14, fontWeight: '600', color: colors.primary },
-  title: { ...typography.h1, color: colors.primary },
-  sub: { ...typography.caption, marginBottom: spacing.lg },
+  backText: { fontSize: 14, fontWeight: '600', color: colors.accent },
+  title: { ...type.h1, color: colors.accent },
+  sub: { ...type.caption, marginBottom: spacing.lg },
   question: { fontSize: 15, fontWeight: '700', color: colors.text, marginBottom: 4 },
   meta: { fontSize: 12, color: colors.textMuted, marginBottom: 12 },
   option: {
@@ -137,7 +139,7 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 8,
   },
-  optionSelected: { borderColor: colors.primary, backgroundColor: colors.successBg },
+  optionSelected: { borderColor: colors.accent, backgroundColor: colors.successBg },
   optionDisabled: { opacity: 0.9 },
   optionText: { fontSize: 13, fontWeight: '600', color: colors.text },
   resultBar: {
@@ -149,6 +151,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  resultFill: { height: '100%', backgroundColor: colors.primary },
+  resultFill: { height: '100%', backgroundColor: colors.accent },
   resultPct: { position: 'absolute', right: 0, top: 10, fontSize: 11, color: colors.textMuted },
 })

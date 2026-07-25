@@ -28,7 +28,7 @@ export default function PendingApprovalScreen() {
 }
 
 const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: colors.paper },
+  page: { flex: 1, backgroundColor: colors.bg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xxl },
   icon: { fontSize: 36, marginBottom: spacing.md },
   body: { ...type.bodyMuted, textAlign: 'center', marginTop: spacing.sm, lineHeight: 20 },

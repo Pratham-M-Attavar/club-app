@@ -1,15 +1,20 @@
 import { View, Text, StyleSheet } from 'react-native'
-import { useTheme } from '../../lib/ThemeContext'
-import { spacing } from '../../lib/theme'
-import Button from './Button'
 
+import Button from './Button'
+import {
+    colors,
+    spacing,
+    radius,
+    type,
+    shadow
+} from '../../lib/theme'
 export default function EmptyState({ title, subtitle, actionLabel, onAction }) {
-  const { theme } = useTheme()
+  
 
   return (
     <View style={styles.wrap}>
-      <Text style={[theme.type.body, { fontWeight: '600' }]}>{title}</Text>
-      {subtitle ? <Text style={[theme.type.bodyMuted, { marginTop: 4 }]}>{subtitle}</Text> : null}
+      <Text style={[type.body, { fontWeight: '600' }]}>{title}</Text>
+      {subtitle ? <Text style={[type.bodyMuted, { marginTop: 4 }]}>{subtitle}</Text> : null}
       {actionLabel ? (
         <Button label={actionLabel} onPress={onAction} variant="outline" style={{ marginTop: spacing.md }} />
       ) : null}

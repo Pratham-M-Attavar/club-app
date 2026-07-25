@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView } from 'react-native'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
+import { colors, spacing, radius } from '../lib/theme'
 
 const CATEGORIES = ['general', 'maintenance', 'event', 'security']
 
@@ -52,7 +53,7 @@ export default function NoticesScreen() {
   }
 
   return (
-    <ScrollView style={styles.page} contentContainerStyle={{ padding: 20 }}>
+    <ScrollView style={styles.page} contentContainerStyle={styles.contentContainer}>
       <Text style={styles.title}>Post a notice</Text>
 
       <TextInput
@@ -100,21 +101,22 @@ export default function NoticesScreen() {
 }
 
 const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: '#f4f1ea' },
-  title: { fontSize: 20, fontWeight: '700', color: '#14262a', marginBottom: 16 },
-  input: { borderWidth: 1, borderColor: '#e4ddd0', borderRadius: 9, padding: 12, fontSize: 14, marginBottom: 10, backgroundColor: '#fff' },
-  textArea: { borderWidth: 1, borderColor: '#e4ddd0', borderRadius: 9, padding: 12, fontSize: 14, marginBottom: 10, minHeight: 70, textAlignVertical: 'top', backgroundColor: '#fff' },
+  page: { flex: 1, backgroundColor: colors.bg },
+  contentContainer: { paddingHorizontal: spacing.xl, paddingTop: spacing.lg, paddingBottom: spacing.xxl },
+  title: { fontSize: 20, fontWeight: '700', color: colors.text, marginBottom: 16 },
+  input: { borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: 12, fontSize: 14, marginBottom: 10, backgroundColor: colors.surface, color: colors.text },
+  textArea: { borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: 12, fontSize: 14, marginBottom: 10, minHeight: 70, textAlignVertical: 'top', backgroundColor: colors.surface, color: colors.text },
   categoryRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 12 },
-  categoryChip: { borderWidth: 1, borderColor: '#e4ddd0', borderRadius: 20, paddingVertical: 6, paddingHorizontal: 12, backgroundColor: '#fff' },
-  categoryChipActive: { backgroundColor: '#14262a', borderRadius: 20, paddingVertical: 6, paddingHorizontal: 12 },
-  categoryChipText: { fontSize: 12, color: '#1d2b2a' },
-  categoryChipTextActive: { fontSize: 12, color: '#fff' },
-  error: { color: '#b5533c', fontSize: 12.5, marginBottom: 10 },
-  postBtn: { backgroundColor: '#14262a', padding: 13, borderRadius: 9, alignItems: 'center', marginBottom: 24 },
-  postBtnText: { color: '#fff', fontWeight: '700', fontSize: 13 },
-  sectionTitle: { fontSize: 16, fontWeight: '700', color: '#14262a', marginBottom: 10 },
-  noticeRow: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#e4ddd0', borderRadius: 10, padding: 14, marginBottom: 8 },
-  noticeTitle: { fontWeight: '600', fontSize: 13.5, color: '#1d2b2a' },
-  noticeBody: { fontSize: 12.5, color: '#4a5654', marginTop: 4 },
-  noticeMeta: { fontSize: 11.5, color: '#6b7674', marginTop: 6 },
+  categoryChip: { borderWidth: 1, borderColor: colors.border, borderRadius: radius.pill, paddingVertical: 6, paddingHorizontal: 12, backgroundColor: colors.surface },
+  categoryChipActive: { backgroundColor: colors.accent, borderRadius: radius.pill, paddingVertical: 6, paddingHorizontal: 12 },
+  categoryChipText: { fontSize: 12, color: colors.textSecondary },
+  categoryChipTextActive: { fontSize: 12, color: colors.text },
+  error: { color: colors.danger, fontSize: 12.5, marginBottom: 10 },
+  postBtn: { backgroundColor: colors.accent, padding: 13, borderRadius: radius.md, alignItems: 'center', marginBottom: 24 },
+  postBtnText: { color: colors.text, fontWeight: '700', fontSize: 13 },
+  sectionTitle: { fontSize: 16, fontWeight: '700', color: colors.text, marginBottom: 10 },
+  noticeRow: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, padding: 14, marginBottom: 8 },
+  noticeTitle: { fontWeight: '600', fontSize: 13.5, color: colors.text },
+  noticeBody: { fontSize: 12.5, color: colors.textSecondary, marginTop: 4 },
+  noticeMeta: { fontSize: 11.5, color: colors.textSecondary, marginTop: 6 },
 })

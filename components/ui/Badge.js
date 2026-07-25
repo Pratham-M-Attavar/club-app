@@ -1,10 +1,15 @@
 import { View, Text, StyleSheet } from 'react-native'
-import { useTheme } from '../../lib/ThemeContext'
-import { radius } from '../../lib/theme'
 
+import {
+    colors,
+    spacing,
+    radius,
+    type,
+    shadow
+} from '../../lib/theme'
 export default function Badge({ label, tone = 'neutral' }) {
-  const { theme } = useTheme()
-  const c = theme.colors
+ 
+  const c = colors
 
   const tones = {
     neutral: { bg: c.surfaceMuted, fg: c.textSecondary },

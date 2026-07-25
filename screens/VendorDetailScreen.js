@@ -86,7 +86,7 @@ export default function VendorDetailScreen({ route, navigation }) {
       <Card>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
           <View style={styles.icon}>
-            <Ionicons name="construct-outline" size={24} color={colors.cove} />
+            <Ionicons name="construct-outline" size={24} color={colors.accent} />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={type.h1}>{vendor.name}</Text>
@@ -160,21 +160,21 @@ export default function VendorDetailScreen({ route, navigation }) {
 }
 
 const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: colors.paper },
+  page: { flex: 1, backgroundColor: colors.bg },
   icon: {
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: colors.coveSoft,
+    backgroundColor: colors.surfaceMuted,
     alignItems: 'center',
     justifyContent: 'center',
   },
   statsRow: { flexDirection: 'row', gap: spacing.lg, marginTop: spacing.md },
   label: { ...type.bodyMuted, marginBottom: spacing.sm },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  chip: { borderWidth: 1, borderColor: colors.border, borderRadius: radius.pill, paddingVertical: spacing.sm, paddingHorizontal: spacing.md, backgroundColor: colors.white },
-  chipActive: { backgroundColor: colors.cove, borderColor: colors.cove },
-  chipText: { fontSize: 12.5, fontWeight: '600', color: colors.ink },
-  chipTextActive: { color: colors.white },
-  textArea: { borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md, fontSize: 13, minHeight: 70, textAlignVertical: 'top', color: colors.ink, backgroundColor: colors.white },
+  chip: { borderWidth: 1, borderColor: colors.border, borderRadius: radius.pill, paddingVertical: spacing.sm, paddingHorizontal: spacing.md, backgroundColor: colors.surface },
+  chipActive: { backgroundColor: colors.accent, borderColor: colors.accent },
+  chipText: { fontSize: 12.5, fontWeight: '600', color: colors.text },
+  chipTextActive: { color: colors.text },
+  textArea: { borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md, fontSize: 13, minHeight: 70, textAlignVertical: 'top', color: colors.text, backgroundColor: colors.surface },
 })

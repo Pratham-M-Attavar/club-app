@@ -45,9 +45,11 @@ export default function ServicesScreen({ navigation }) {
   )
 
   return (
-    <ScrollView style={styles.page} contentContainerStyle={{ padding: spacing.xl }}>
-      <Text style={type.display}>Services</Text>
-      <Text style={[type.bodyMuted, { marginBottom: spacing.lg }]}>Trusted vendors for your society</Text>
+    <ScrollView style={styles.page} contentContainerStyle={styles.contentContainer}>
+      <View style={styles.headerBlock}>
+        <Text style={type.display}>Services</Text>
+        <Text style={[type.bodyMuted, { marginTop: 4 }]}>Trusted vendors for your society</Text>
+      </View>
 
       <TouchableOpacity onPress={() => navigation.navigate('EmergencyContacts')}>
         <View style={styles.emergencyBanner}>
@@ -81,7 +83,7 @@ export default function ServicesScreen({ navigation }) {
               style={[styles.catChip, active && styles.catChipActive]}
               onPress={() => setCategory(item.key)}
             >
-              <Ionicons name={item.icon} size={15} color={active ? colors.white : colors.cove} />
+              <Ionicons name={item.icon} size={15} color={active ? colors.text : colors.accent} />
               <Text style={[styles.catLabel, active && styles.catLabelActive]}>{item.label}</Text>
             </TouchableOpacity>
           )
@@ -105,7 +107,7 @@ export default function ServicesScreen({ navigation }) {
             <Card>
               <View style={styles.vendorRow}>
                 <View style={styles.vendorIcon}>
-                  <Ionicons name="construct-outline" size={20} color={colors.cove} />
+                  <Ionicons name="construct-outline" size={20} color={colors.accent} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.vendorName}>{v.name}</Text>
@@ -148,27 +150,29 @@ function StarRating({ rating }) {
 }
 
 const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: colors.paper },
+  page: { flex: 1, backgroundColor: colors.bg },
+  contentContainer: { paddingHorizontal: spacing.xl, paddingTop: spacing.xl, paddingBottom: spacing.xxl },
+  headerBlock: { marginBottom: spacing.lg, marginTop: spacing.md },
   emergencyBanner: {
     flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
-    backgroundColor: colors.lateriteSoft, borderRadius: radius.md,
+    backgroundColor: colors.accentSoft, borderRadius: radius.md,
     padding: spacing.md, marginBottom: spacing.lg,
   },
   emergencyIcon: { fontSize: 18 },
-  emergencyText: { flex: 1, fontSize: 14, fontWeight: '700', color: colors.lateriteDark },
-  emergencyChevron: { fontSize: 20, color: colors.lateriteDark },
+  emergencyText: { flex: 1, fontSize: 14, fontWeight: '700', color: colors.accentPressed },
+  emergencyChevron: { fontSize: 20, color: colors.accentPressed },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: radius.md,
     paddingHorizontal: spacing.md,
     marginBottom: spacing.lg,
   },
-  searchInput: { flex: 1, paddingVertical: spacing.md, fontSize: 14, color: colors.ink },
+  searchInput: { flex: 1, paddingVertical: spacing.md, fontSize: 14, color: colors.text },
   catChip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -178,19 +182,19 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     borderWidth: 1,
     borderColor: colors.border,
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
   },
-  catChipActive: { backgroundColor: colors.cove, borderColor: colors.cove },
-  catLabel: { fontSize: 12, fontWeight: '600', color: colors.cove },
-  catLabelActive: { color: colors.white },
+  catChipActive: { backgroundColor: colors.accent, borderColor: colors.accent },
+  catLabel: { fontSize: 12, fontWeight: '600', color: colors.accent },
+  catLabelActive: { color: colors.text },
   vendorRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   vendorIcon: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: colors.coveSoft,
+    backgroundColor: colors.surfaceMuted,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  vendorName: { fontSize: 15, fontWeight: '700', color: colors.ink },
+  vendorName: { fontSize: 15, fontWeight: '700', color: colors.text },
 })

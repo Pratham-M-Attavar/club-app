@@ -80,8 +80,8 @@ export default function PaymentHistoryScreen() {
 }
 
 const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: colors.paper },
+  page: { flex: 1, backgroundColor: colors.bg },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   monthLabel: { ...type.eyebrow, marginBottom: 4 },
-  amount: { fontSize: 20, fontWeight: '700', color: colors.ink },
+  amount: { fontSize: 20, fontWeight: '700', color: colors.text },
 })

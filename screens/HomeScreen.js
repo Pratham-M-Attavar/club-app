@@ -4,8 +4,8 @@ import * as Clipboard from 'expo-clipboard'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
-import { useTheme } from '../lib/ThemeContext'
-import { spacing, radius, NOTICE_CATEGORY_TONES } from '../lib/theme'
+
+import { NOTICE_CATEGORY_TONES } from '../lib/theme'
 
 import { generateReceipt } from '../lib/receipt'
 import { pickAndUploadProof } from '../lib/paymentProof'
@@ -15,7 +15,13 @@ import Button from '../components/ui/Button'
 import Badge from '../components/ui/Badge'
 import EmptyState from '../components/ui/EmptyState'
 import { DuesCardSkeleton, RowSkeleton } from '../components/ui/Skeleton'
-
+import {
+    colors as themeColors,
+    spacing,
+    radius,
+    type,
+    shadow
+} from '../lib/theme'
 const BUILDING_UPI_ID = 'club-pilot@upi'
 const BUILDING_UPI_NAME = 'Madhuvan Apartment'
 
@@ -23,10 +29,10 @@ const CATEGORIES = ['plumbing', 'electrical', 'security', 'cleanliness', 'other'
 
 export default function HomeScreen({ navigation }) {
   const { profile, signOut } = useAuth()
-  const { theme } = useTheme()
-  const styles = useMemo(() => createStyles(theme), [theme])
-  const type = theme.type
-  const colors = theme.colors
+
+  const styles = useMemo(() => createStyles(), [])
+
+  const palette = themeColors
   const [currentDue, setCurrentDue] = useState(null)
   const [duesLoading, setDuesLoading] = useState(true)
   const [tickets, setTickets] = useState([])
@@ -35,24 +41,19 @@ export default function HomeScreen({ navigation }) {
   const [noticesLoading, setNoticesLoading] = useState(true)
   const [openNoticeId, setOpenNoticeId] = useState(null)
   const [showPayPanel, setShowPayPanel] = useState(false)
+  const [showRentPayPanel, setShowRentPayPanel] = useState(false)
   const [showTicketForm, setShowTicketForm] = useState(false)
   const [ticketCategory, setTicketCategory] = useState('plumbing')
   const [ticketDescription, setTicketDescription] = useState('')
   const [submittingTicket, setSubmittingTicket] = useState(false)
   const [uploadingProof, setUploadingProof] = useState(false)
-  const [flatInfo, setFlatInfo] = useState(null) // { id, maintenance_payer }
+  const [flatInfo, setFlatInfo] = useState(null)
   const [counterpart, setCounterpart] = useState(null) // the other owner/tenant on this flat, if any
-  const [updatingPayer, setUpdatingPayer] = useState(false)
 
   // Rent (tenant <-> owner, independent of building maintenance)
   const [rentPayment, setRentPayment] = useState(null)
   const [rentLoading, setRentLoading] = useState(true)
-  const [showRentPayPanel, setShowRentPayPanel] = useState(false)
   const [uploadingRentProof, setUploadingRentProof] = useState(false)
-  const [rentAmountInput, setRentAmountInput] = useState('')
-  const [rentUpiInput, setRentUpiInput] = useState('')
-  const [savingRentSettings, setSavingRentSettings] = useState(false)
-  const [rentSettingsPrefilled, setRentSettingsPrefilled] = useState(false)
   const [confirmingRent, setConfirmingRent] = useState(false)
   const [rentProofModalUrl, setRentProofModalUrl] = useState(null)
   const [viewingRentProof, setViewingRentProof] = useState(false)
@@ -132,14 +133,6 @@ export default function HomeScreen({ navigation }) {
     loadOrCreateRent()
   }, [profile, flatInfo, counterpart])
 
-  useEffect(() => {
-    if (profile?.ownership === 'owner' && flatInfo && !rentSettingsPrefilled) {
-      setRentAmountInput(flatInfo.rent_amount ? String(flatInfo.rent_amount) : '')
-      setRentUpiInput(flatInfo.owner_upi_id || '')
-      setRentSettingsPrefilled(true)
-    }
-  }, [profile, flatInfo, rentSettingsPrefilled])
-
   async function loadOrCreateRent() {
     setRentLoading(true)
     const firstOfMonth = new Date()
@@ -197,9 +190,31 @@ export default function HomeScreen({ navigation }) {
     Alert.alert('Copied', 'UPI ID copied to clipboard')
   }
 
+  async function copyRentAccountDetails() {
+    if (!flatInfo?.owner_upi_id) {
+      Alert.alert('No details', 'No rent account details were added yet.')
+      return
+    }
+    await Clipboard.setStringAsync(flatInfo.owner_upi_id)
+    Alert.alert('Copied', 'Rent account details copied to clipboard')
+  }
+
   function openUpiApp() {
     const url = `upi://pay?pa=${BUILDING_UPI_ID}&pn=${encodeURIComponent(BUILDING_UPI_NAME)}&am=${currentDue.total}&cu=INR&tn=${encodeURIComponent('Maintenance - Flat ' + profile.flat_number)}`
     Linking.openURL(url).catch(() => Alert.alert('No UPI app found', 'Install GPay or PhonePe to pay directly, or copy the UPI ID instead.'))
+  }
+
+  function openRentUpiApp() {
+    const rentAmount = rentPayment?.amount ?? flatInfo?.rent_amount
+    const rentUpiId = flatInfo?.owner_upi_id
+
+    if (!rentUpiId) {
+      Alert.alert('No rent details', 'Add the rent account or UPI details first so the payment can be opened directly.')
+      return
+    }
+
+    const url = `upi://pay?pa=${encodeURIComponent(rentUpiId)}&pn=${encodeURIComponent(profile.full_name || 'Rent Payment')}&am=${rentAmount || 0}&cu=INR&tn=${encodeURIComponent('Rent - Flat ' + profile.flat_number)}`
+    Linking.openURL(url).catch(() => Alert.alert('No UPI app found', 'Install GPay or PhonePe to pay directly, or copy the rent account details instead.'))
   }
 
   async function downloadReceipt() {
@@ -218,42 +233,6 @@ export default function HomeScreen({ navigation }) {
       Alert.alert('Could not upload proof', err.message)
     }
     setUploadingProof(false)
-  }
-
-  async function saveRentSettings() {
-    if (!flatInfo) return
-    const amount = parseFloat(rentAmountInput)
-    if (!amount || amount <= 0) {
-      Alert.alert('Enter a valid amount', 'Rent amount should be a positive number.')
-      return
-    }
-    if (!rentUpiInput.trim()) {
-      Alert.alert('Enter your UPI ID', "So your tenant can pay you directly.")
-      return
-    }
-    setSavingRentSettings(true)
-    const { error } = await supabase
-      .from('flats')
-      .update({ rent_amount: amount, owner_upi_id: rentUpiInput.trim() })
-      .eq('id', flatInfo.id)
-    setSavingRentSettings(false)
-    if (error) {
-      Alert.alert('Could not save', error.message)
-      return
-    }
-    setFlatInfo({ ...flatInfo, rent_amount: amount, owner_upi_id: rentUpiInput.trim() })
-    Alert.alert('Saved', 'Rent settings updated.')
-  }
-
-  function openRentUpiApp() {
-    if (!flatInfo?.owner_upi_id || !rentPayment?.amount) return
-    const url = `upi://pay?pa=${flatInfo.owner_upi_id}&pn=${encodeURIComponent(counterpart?.full_name || 'Owner')}&am=${rentPayment.amount}&cu=INR&tn=${encodeURIComponent('Rent - Flat ' + profile.flat_number)}`
-    Linking.openURL(url).catch(() => Alert.alert('No UPI app found', 'Install GPay or PhonePe to pay directly, or copy the UPI ID instead.'))
-  }
-
-  async function copyRentUpiId() {
-    await Clipboard.setStringAsync(flatInfo.owner_upi_id)
-    Alert.alert('Copied', "Owner's UPI ID copied to clipboard")
   }
 
   async function handleUploadRentProof() {
@@ -305,18 +284,6 @@ export default function HomeScreen({ navigation }) {
     loadOrCreateRent()
   }
 
-  async function setMaintenancePayer(payer) {
-    if (!flatInfo) return
-    setUpdatingPayer(true)
-    const { error } = await supabase.from('flats').update({ maintenance_payer: payer }).eq('id', flatInfo.id)
-    setUpdatingPayer(false)
-    if (error) {
-      Alert.alert('Could not update', error.message)
-      return
-    }
-    setFlatInfo({ ...flatInfo, maintenance_payer: payer })
-  }
-
   if (!profile) {
     return (
       <View style={styles.centerFill}>
@@ -327,63 +294,47 @@ export default function HomeScreen({ navigation }) {
   }
 
   const openTickets = tickets.filter(t => t.status !== 'done')
-  const maintenancePayer = flatInfo?.maintenance_payer || 'owner'
-  const payerIsMe = profile.ownership === maintenancePayer
+  const payerIsMe = profile.ownership === (flatInfo?.maintenance_payer || 'owner')
   const counterpartLabel = profile.ownership === 'owner' ? 'tenant' : 'owner'
 
   return (
     <SafeAreaView style={styles.page} edges={['top']}>
-    <ScrollView style={styles.page} contentContainerStyle={{ padding: spacing.xl }} showsVerticalScrollIndicator={false}>
-      <View style={styles.headerRow}>
+    <ScrollView style={styles.page} contentContainerStyle={styles.contentContainer} showsVerticalScrollIndicator={false}>
+      <View style={styles.heroCard}>
         <View style={{ flex: 1 }}>
-          <Text style={type.display}>Hi, {profile.full_name?.split(' ')[0]}</Text>
-          <Text style={[type.bodyMuted, { marginTop: 4 }]}>Flat {profile.flat_number}</Text>
+          <Text style={styles.heroEyebrow}>Community home</Text>
+          <Text style={styles.heroTitle}>Hi, {profile.full_name?.split(' ')[0] || 'there'}</Text>
+          <Text style={[type.bodyMuted, { marginTop: 6 }]}>Flat {profile.flat_number} • Everything you need is here.</Text>
+        </View>
+        <View style={styles.heroBadge}>
+          <Text style={styles.heroBadgeText}>Resident</Text>
         </View>
       </View>
-
-      {profile.ownership === 'owner' && counterpart && (
-        <Card>
-          <Text style={type.eyebrow}>Who pays maintenance?</Text>
-          <Text style={[type.bodyMuted, { marginBottom: spacing.md }]}>
-            Choose whether you or your tenant ({counterpart.full_name}) handles the monthly maintenance for this flat.
-          </Text>
-          <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-            <Button
-              label="I pay"
-              onPress={() => setMaintenancePayer('owner')}
-              variant={maintenancePayer === 'owner' ? 'primary' : 'outline'}
-              disabled={updatingPayer}
-              style={{ flex: 1 }}
-            />
-            <Button
-              label="Tenant pays"
-              onPress={() => setMaintenancePayer('tenant')}
-              variant={maintenancePayer === 'tenant' ? 'primary' : 'outline'}
-              disabled={updatingPayer}
-              style={{ flex: 1 }}
-            />
-          </View>
-        </Card>
-      )}
 
       {duesLoading ? (
         <DuesCardSkeleton />
       ) : (
-        <Card dark featured>
+        <Card dark style={styles.heroPanel}>
           {currentDue ? (
             <>
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
-                <Text style={styles.duesLabel}>Maintenance</Text>
+              <View style={styles.duesHeader}>
+                <View style={styles.duesTitleWrap}>
+                  <View style={styles.duesAccent} />
+                  <Text style={styles.duesLabel}>Maintenance</Text>
+                </View>
                 <Badge
                   label={currentDue.status}
                   tone={currentDue.status === 'paid' ? 'success' : currentDue.status === 'submitted' ? 'warning' : 'cove'}
                 />
               </View>
-              <Text style={styles.duesAmount}>₹{currentDue.total}</Text>
+              <View style={styles.duesAmountRow}>
+                <Text style={styles.duesAmount}>₹{currentDue.total}</Text>
+                {currentDue.status === 'paid' && (
+                  <Button label="Receipt" onPress={downloadReceipt} variant="outline" style={styles.receiptButton} textStyle={{ color: palette.heroText }} />
+                )}
+              </View>
 
-              {currentDue.status === 'paid' ? (
-                <Button label="Download receipt" onPress={downloadReceipt} variant="outline" style={styles.onDarkOutline} textStyle={{ color: colors.heroText }} />
-              ) : currentDue.status === 'submitted' ? (
+              {currentDue.status === 'paid' ? null : currentDue.status === 'submitted' ? (
                 <View style={styles.awaitingBox}>
                   <Text style={styles.awaitingText}>
                     Payment proof submitted{currentDue.proof_uploaded_at ? ` on ${new Date(currentDue.proof_uploaded_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}` : ''} — awaiting committee confirmation.
@@ -394,14 +345,24 @@ export default function HomeScreen({ navigation }) {
                     loading={uploadingProof}
                     variant="outline"
                     style={[styles.onDarkOutline, { marginTop: spacing.sm }]}
-                    textStyle={{ color: colors.heroText }}
+                    textStyle={{ color: palette.heroText }}
                   />
                 </View>
               ) : (
                 <>
                   {payerIsMe ? (
                     <>
-                      <Button label={showPayPanel ? 'Hide payment' : 'Pay now'} onPress={() => setShowPayPanel(!showPayPanel)} variant="primary" />
+                      <View style={styles.primaryActionsRow}>
+                        <Button label={showPayPanel ? 'Hide payment' : 'Pay now'} onPress={() => setShowPayPanel(!showPayPanel)} variant="primary" style={styles.primaryActionButton} />
+                        <Button
+                          label={uploadingProof ? 'Uploading…' : 'Upload proof'}
+                          onPress={handleUploadProof}
+                          loading={uploadingProof}
+                          variant="outline"
+                          style={styles.secondaryActionButton}
+                          textStyle={{ color: palette.heroText }}
+                        />
+                      </View>
 
                       {showPayPanel && (
                         <View style={styles.payPanel}>
@@ -419,14 +380,6 @@ export default function HomeScreen({ navigation }) {
                         </View>
                       )}
 
-                      <Button
-                        label={uploadingProof ? 'Uploading…' : 'Upload payment proof'}
-                        onPress={handleUploadProof}
-                        loading={uploadingProof}
-                        variant="outline"
-                        style={[styles.onDarkOutline, { marginTop: spacing.md }]}
-                        textStyle={{ color: colors.heroText }}
-                      />
                     </>
                   ) : (
                     <View style={styles.awaitingBox}>
@@ -439,11 +392,10 @@ export default function HomeScreen({ navigation }) {
               )}
 
               <Button
-                label="View payment history →"
+                label="History"
                 onPress={() => navigation.navigate('PaymentHistory')}
                 variant="ghost"
-                textStyle={{ color: colors.heroMuted }}
-                style={{ marginTop: spacing.md, paddingHorizontal: 0 }}
+                style={styles.paymentHistoryButton}
               />
             </>
           ) : (
@@ -453,127 +405,109 @@ export default function HomeScreen({ navigation }) {
       )}
 
       {!rentLoading && counterpart && (
-        <Card>
-          <Text style={type.eyebrow}>Rent</Text>
+        <Card style={styles.rentCard}>
+          <View style={styles.duesHeader}>
+            <View style={styles.duesTitleWrap}>
+              <View style={styles.rentAccent} />
+              <Text style={styles.duesLabelLarge}>Rent</Text>
+            </View>
+          </View>
 
           {profile.ownership === 'owner' ? (
             <>
-              <Text style={[type.bodyMuted, { marginBottom: spacing.sm }]}>
-                Set the monthly rent and your UPI ID so {counterpart.full_name} can pay you directly.
-              </Text>
-              <TextInput
-                style={styles.rentInput}
-                placeholder="Monthly rent amount (₹)"
-                placeholderTextColor={colors.textFaint}
-                value={rentAmountInput}
-                onChangeText={setRentAmountInput}
-                keyboardType="numeric"
-              />
-              <TextInput
-                style={styles.rentInput}
-                placeholder="Your UPI ID (e.g. name@upi)"
-                placeholderTextColor={colors.textFaint}
-                value={rentUpiInput}
-                onChangeText={setRentUpiInput}
-                autoCapitalize="none"
-              />
-              <Button
-                label={savingRentSettings ? 'Saving…' : 'Save rent settings'}
-                onPress={saveRentSettings}
-                loading={savingRentSettings}
-                variant="outline"
-                style={{ marginBottom: spacing.md }}
-              />
-
-              {rentPayment ? (
-                <View style={styles.rentStatusBox}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <Text style={styles.rentAmount}>₹{rentPayment.amount}</Text>
-                    <Badge
-                      label={rentPayment.status}
-                      tone={rentPayment.status === 'paid' ? 'success' : rentPayment.status === 'submitted' ? 'warning' : 'cove'}
-                    />
-                  </View>
-
-                  {rentPayment.status === 'submitted' && (
-                    <Button
-                      label={viewingRentProof ? 'Opening…' : 'View proof'}
-                      onPress={viewRentProof}
-                      disabled={viewingRentProof}
-                      variant="outline"
-                      style={{ marginTop: spacing.sm }}
-                    />
-                  )}
-
-                  {rentPayment.status !== 'paid' && (
-                    <Button
-                      label={confirmingRent ? 'Confirming…' : 'Confirm rent received'}
-                      onPress={confirmRent}
-                      loading={confirmingRent}
-                      variant="primary"
-                      style={{ marginTop: spacing.sm, alignSelf: 'stretch' }}
-                    />
-                  )}
+              <Text style={[type.bodyMuted, { marginBottom: spacing.sm }]}>Track whether rent has been paid and confirm receipt professionally.</Text>
+              <View style={styles.rentStatusBox}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Text style={styles.rentAmount}>Status</Text>
+                  <Badge
+                    label={rentPayment?.status || 'pending'}
+                    tone={rentPayment?.status === 'paid' ? 'success' : rentPayment?.status === 'submitted' ? 'warning' : 'cove'}
+                  />
                 </View>
-              ) : (
-                <Text style={type.bodyMuted}>No rent recorded yet this month.</Text>
-              )}
+
+                {rentPayment?.status === 'submitted' && (
+                  <Button
+                    label={viewingRentProof ? 'Opening…' : 'View proof'}
+                    onPress={viewRentProof}
+                    disabled={viewingRentProof}
+                    variant="outline"
+                    style={{ marginTop: spacing.sm }}
+                  />
+                )}
+
+                {rentPayment?.status !== 'paid' && (
+                  <Button
+                    label={confirmingRent ? 'Confirming…' : 'Confirm rent received'}
+                    onPress={confirmRent}
+                    loading={confirmingRent}
+                    variant="primary"
+                    style={{ marginTop: spacing.sm, alignSelf: 'stretch' }}
+                  />
+                )}
+              </View>
             </>
           ) : (
             <>
-              <Text style={styles.rentAmount}>₹{rentPayment?.amount ?? flatInfo?.rent_amount ?? '—'}</Text>
-              <Badge
-                label={rentPayment?.status || 'pending'}
-                tone={rentPayment?.status === 'paid' ? 'success' : rentPayment?.status === 'submitted' ? 'warning' : 'cove'}
-              />
-
-              {rentPayment?.status === 'paid' ? (
-                <Text style={[type.bodyMuted, { marginTop: spacing.md }]}>Paid for this month.</Text>
-              ) : rentPayment?.status === 'submitted' ? (
-                <Text style={[type.bodyMuted, { marginTop: spacing.md }]}>
-                  Proof submitted — awaiting confirmation from {counterpart.full_name}.
-                </Text>
-              ) : !flatInfo?.owner_upi_id ? (
-                <Text style={[type.bodyMuted, { marginTop: spacing.md }]}>
-                  Your owner hasn't set up rent details yet.
-                </Text>
-              ) : (
-                <View style={{ marginTop: spacing.md }}>
-                  <Button
-                    label={showRentPayPanel ? 'Hide payment details' : 'Pay now →'}
-                    onPress={() => setShowRentPayPanel(!showRentPayPanel)}
-                    variant="primary"
-                  />
-
-                  {showRentPayPanel && (
-                    <View style={styles.rentPayPanel}>
-                      <Text style={styles.rentPayPanelLabel}>Pay via UPI to:</Text>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
-                        <Text style={styles.rentUpiText}>{flatInfo.owner_upi_id}</Text>
-                        <TouchableOpacity style={styles.rentCopyBtn} onPress={copyRentUpiId}>
-                          <Text style={styles.rentCopyBtnText}>Copy</Text>
-                        </TouchableOpacity>
-                      </View>
-                      <Button label="Open in UPI app →" onPress={openRentUpiApp} variant="primary" />
-                    </View>
-                  )}
-
-                  <Button
-                    label={uploadingRentProof ? 'Uploading…' : 'Upload payment proof'}
-                    onPress={handleUploadRentProof}
-                    loading={uploadingRentProof}
-                    variant="outline"
-                    style={{ marginTop: spacing.md }}
+              <Text style={[type.bodyMuted, { marginBottom: spacing.sm }]}>Your rent status for this month.</Text>
+              <View style={styles.rentStatusBox}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Text style={styles.rentAmount}>Status</Text>
+                  <Badge
+                    label={rentPayment?.status || 'pending'}
+                    tone={rentPayment?.status === 'paid' ? 'success' : rentPayment?.status === 'submitted' ? 'warning' : 'cove'}
                   />
                 </View>
-              )}
+
+                {rentPayment?.status === 'paid' ? (
+                  <Text style={[type.bodyMuted, { marginTop: spacing.md }]}>Rent has been paid for this month.</Text>
+                ) : rentPayment?.status === 'submitted' ? (
+                  <Text style={[type.bodyMuted, { marginTop: spacing.md }]}>Your payment proof is under review.</Text>
+                ) : (
+                  <>
+                    <View style={styles.primaryActionsRow}>
+                      <Button
+                        label={showRentPayPanel ? 'Hide payment' : 'Pay now'}
+                        onPress={() => setShowRentPayPanel(prev => !prev)}
+                        variant="primary"
+                        style={styles.primaryActionButton}
+                      />
+                      <Button
+                        label={uploadingRentProof ? 'Uploading…' : 'Upload proof'}
+                        onPress={handleUploadRentProof}
+                        loading={uploadingRentProof}
+                        variant="outline"
+                        style={styles.secondaryActionButton}
+                      />
+                    </View>
+
+                    {showRentPayPanel && (
+                      <View style={styles.rentPayPanel}>
+                        <Text style={styles.rentPayPanelLabel}>Rent amount</Text>
+                        <Text style={styles.rentAmount}>₹{rentPayment?.amount ?? flatInfo?.rent_amount ?? '—'}</Text>
+                        <Text style={[type.bodyMuted, { marginTop: spacing.sm }]}>Use the payment details below to settle this month’s rent.</Text>
+
+                        <Text style={[styles.rentPayPanelLabel, { marginTop: spacing.md }]}>Account / UPI</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6 }}>
+                          <Text style={styles.rentUpiText}>{flatInfo?.owner_upi_id || 'No rent account details added yet'}</Text>
+                          <TouchableOpacity style={styles.rentCopyBtn} onPress={copyRentAccountDetails}>
+                            <Text style={styles.rentCopyBtnText}>Copy</Text>
+                          </TouchableOpacity>
+                        </View>
+
+                        <Button label="Open in UPI app →" onPress={openRentUpiApp} variant="primary" style={{ marginTop: spacing.md }} />
+                        <Text style={styles.payNote}>Opens GPay/PhonePe if installed. Once paid, you can upload proof from the button above.</Text>
+                      </View>
+                    )}
+                  </>
+                )}
+              </View>
             </>
           )}
         </Card>
       )}
 
-      <Card>
-        <Text style={type.eyebrow}>Your open requests</Text>
+      <Card style={styles.softCard}>
+        <Text style={styles.sectionEyebrow}>Requests</Text>
 
         {ticketsLoading ? (
           <>
@@ -585,17 +519,17 @@ export default function HomeScreen({ navigation }) {
         ) : (
           openTickets.map(t => (
             <View key={t.id} style={styles.row}>
-              <Text style={styles.rowTitle}>{t.description || t.category}</Text>
+              <Text style={styles.ticketRowTitle} numberOfLines={1} ellipsizeMode="tail">{t.description || t.category}</Text>
               <Badge label={t.status} tone={t.status === 'in_progress' ? 'warning' : 'neutral'} />
             </View>
           ))
         )}
 
         <Button
-          label={showTicketForm ? 'Cancel' : '+ Raise a complaint'}
+          label={showTicketForm ? 'Cancel' : 'Raise complaint'}
           onPress={() => setShowTicketForm(!showTicketForm)}
           variant="outline"
-          style={{ marginTop: spacing.md }}
+          style={{ marginTop: spacing.sm }}
         />
 
         {showTicketForm && (
@@ -614,7 +548,7 @@ export default function HomeScreen({ navigation }) {
             <TextInput
               style={styles.textArea}
               placeholder="What's the issue?"
-              placeholderTextColor={colors.textFaint}
+              placeholderTextColor={palette.textTertiary}
               value={ticketDescription}
               onChangeText={setTicketDescription}
               multiline
@@ -630,8 +564,8 @@ export default function HomeScreen({ navigation }) {
         )}
       </Card>
 
-      <Card>
-        <Text style={type.eyebrow}>Notices</Text>
+      <Card style={styles.softCard}>
+        <Text style={styles.sectionEyebrow}>Notices</Text>
 
         {noticesLoading ? (
           <>
@@ -683,49 +617,70 @@ export default function HomeScreen({ navigation }) {
   )
 }
 
-const createStyles = theme => {
-  const colors = theme.colors
+const createStyles = () => {
+  const palette = themeColors
   return StyleSheet.create({
-  page: { flex: 1, backgroundColor: colors.bg },
-  centerFill: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl, backgroundColor: colors.bg },
-  headerRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: spacing.xl, gap: spacing.md },
+  page: { flex: 1, backgroundColor: palette.bg },
+  contentContainer: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.xxl },
+  centerFill: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl, backgroundColor: palette.bg },
+  heroCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: palette.surface, borderWidth: 1, borderColor: palette.border, borderRadius: radius.lg, padding: spacing.md, marginBottom: spacing.md },
+  heroEyebrow: { fontSize: 10, fontWeight: '600', color: palette.textSecondary, textTransform: 'uppercase', letterSpacing: 0.8 },
+  heroTitle: { fontSize: 20, fontWeight: '700', color: palette.text, letterSpacing: -0.3, marginTop: 3 },
+  heroBadge: { backgroundColor: palette.surfaceElevated, borderRadius: radius.pill, paddingHorizontal: 8, paddingVertical: 5 },
+  heroBadgeText: { fontSize: 11, fontWeight: '600', color: palette.textSecondary },
+  heroPanel: { backgroundColor: palette.surfaceElevated, borderWidth: 1, borderColor: palette.border, borderRadius: radius.lg, marginBottom: spacing.md },
+  softCard: { backgroundColor: palette.surface, borderWidth: 1, borderColor: palette.border, borderRadius: radius.lg, marginBottom: spacing.md },
+  sectionEyebrow: { fontSize: 10, fontWeight: '700', color: palette.textSecondary, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: spacing.xs },
+  duesLabelLarge: { fontSize: 13, color: palette.text, textTransform: 'uppercase', fontWeight: '700', marginRight: spacing.sm },
+  rentCard: { borderWidth: 1, borderColor: palette.border, backgroundColor: palette.surface, borderRadius: radius.lg, marginBottom: spacing.md },
 
-  duesLabel: { fontSize: 11, color: colors.heroMuted, textTransform: 'uppercase', fontWeight: '700', marginRight: spacing.sm },
-  duesAmount: { fontSize: 34, fontWeight: '700', color: colors.heroText, marginBottom: spacing.md, letterSpacing: -1 },
-  onDarkOutline: { borderColor: colors.heroMuted, backgroundColor: 'transparent' },
-  awaitingBox: { backgroundColor: theme.isDark ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.1)', borderRadius: radius.md, padding: spacing.md },
-  awaitingText: { fontSize: 13, color: colors.heroMuted, lineHeight: 20 },
+  duesHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.xs },
+  duesTitleWrap: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  duesAccent: { width: 10, height: 10, borderRadius: 999, backgroundColor: palette.accent },
+  rentAccent: { width: 10, height: 10, borderRadius: 999, backgroundColor: palette.warning },
+  duesLabel: { fontSize: 11, color: palette.text, textTransform: 'uppercase', fontWeight: '700', marginRight: spacing.sm },
+  duesAmountRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.sm },
+  duesAmount: { fontSize: 28, fontWeight: '700', color: palette.heroText, letterSpacing: -0.8 },
+  receiptButton: { borderColor: palette.heroMuted, backgroundColor: 'transparent', paddingHorizontal: 10, paddingVertical: 6 },
+  onDarkOutline: { borderColor: palette.heroMuted, backgroundColor: 'transparent' },
+  primaryActionsRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.sm },
+  primaryActionButton: { flex: 1 },
+  secondaryActionButton: { flex: 1, borderColor: palette.heroMuted, backgroundColor: 'transparent' },
+  paymentHistoryButton: { marginTop: spacing.xs, alignSelf: 'flex-start', paddingVertical: 2, paddingHorizontal: 0 },
+  awaitingBox: { backgroundColor: palette.bg, borderRadius: radius.md, padding: spacing.md },
+  awaitingText: { fontSize: 13, color: palette.heroMuted, lineHeight: 20 },
 
-  payPanel: { marginTop: spacing.md, backgroundColor: theme.isDark ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.1)', borderRadius: radius.md, padding: spacing.md },
-  payPanelLabel: { fontSize: 11, color: colors.heroMuted, marginBottom: 6, fontWeight: '600' },
-  upiId: { flex: 1, backgroundColor: 'rgba(0,0,0,0.2)', color: colors.heroText, padding: 10, borderRadius: radius.sm, fontSize: 13, marginRight: 8, fontWeight: '500' },
-  copyBtn: { borderWidth: 1, borderColor: colors.heroMuted, borderRadius: radius.sm, paddingVertical: 6, paddingHorizontal: 12 },
-  copyBtnText: { color: colors.heroText, fontSize: 12, fontWeight: '600' },
-  payNote: { fontSize: 12, color: colors.heroMuted, marginTop: spacing.md, lineHeight: 18 },
+  payPanel: { marginTop: spacing.md, backgroundColor: palette.bg, borderRadius: radius.md, padding: spacing.md },
+  payPanelLabel: { fontSize: 11, color: palette.heroMuted, marginBottom: 6, fontWeight: '600' },
+  upiId: { flex: 1, backgroundColor: 'rgba(0,0,0,0.2)', color: palette.heroText, padding: 10, borderRadius: radius.sm, fontSize: 13, marginRight: 8, fontWeight: '500' },
+  copyBtn: { borderWidth: 1, borderColor: palette.heroMuted, borderRadius: radius.sm, paddingVertical: 6, paddingHorizontal: 12 },
+  copyBtnText: { color: palette.heroText, fontSize: 12, fontWeight: '600' },
+  payNote: { fontSize: 12, color: palette.heroMuted, marginTop: spacing.md, lineHeight: 18 },
 
-  row: { paddingVertical: spacing.md, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  rowTitle: { fontWeight: '600', fontSize: 15, color: colors.text, flexShrink: 1, marginRight: spacing.sm },
-  noticeBody: { fontSize: 14, color: colors.textSecondary, marginTop: 8, lineHeight: 21 },
+  row: { paddingVertical: spacing.xs, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: palette.border, flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
+  rowTitle: { fontWeight: '600', fontSize: 13, color: palette.text, flexShrink: 1, marginRight: spacing.sm },
+  ticketRowTitle: { fontWeight: '600', fontSize: 12.5, color: palette.text, flexShrink: 1, marginRight: spacing.sm, maxWidth: '78%' },
+  noticeBody: { fontSize: 12.5, color: palette.textSecondary, marginTop: 4, lineHeight: 18 },
 
   categoryRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: spacing.sm },
-  categoryChip: { borderWidth: 1, borderColor: colors.border, borderRadius: radius.pill, paddingVertical: 8, paddingHorizontal: 14, backgroundColor: colors.chip },
-  categoryChipActive: { backgroundColor: colors.chipActive, borderColor: colors.chipActive, borderRadius: radius.pill, paddingVertical: 8, paddingHorizontal: 14 },
-  categoryChipText: { fontSize: 13, color: colors.chipText, fontWeight: '500' },
-  categoryChipTextActive: { fontSize: 13, color: colors.chipTextActive, fontWeight: '600' },
-  textArea: { borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md, fontSize: 15, minHeight: 88, textAlignVertical: 'top', marginBottom: spacing.sm, color: colors.text, backgroundColor: colors.inputBg },
+  categoryChip: { borderWidth: 1, borderColor: palette.border, borderRadius: radius.pill, paddingVertical: 6, paddingHorizontal: 12, backgroundColor: palette.chip },
+  categoryChipActive: { backgroundColor: palette.chipActive, borderColor: palette.chipActive, borderRadius: radius.pill, paddingVertical: 6, paddingHorizontal: 12 },
+  categoryChipText: { fontSize: 12, color: palette.chipText, fontWeight: '500' },
+  categoryChipTextActive: { fontSize: 12, color: palette.chipTextActive, fontWeight: '600' },
+  textArea: { borderWidth: 1, borderColor: palette.border, borderRadius: radius.md, padding: spacing.sm, fontSize: 14, minHeight: 78, textAlignVertical: 'top', marginBottom: spacing.sm, color: palette.text, backgroundColor: palette.inputBg },
 
-  rentInput: { borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, padding: spacing.md, fontSize: 15, marginBottom: spacing.sm, color: colors.text, backgroundColor: colors.inputBg },
-  rentAmount: { fontSize: 22, fontWeight: '700', color: colors.text, letterSpacing: -0.5 },
-  rentStatusBox: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border, paddingTop: spacing.md, marginTop: spacing.sm },
-  rentPayPanel: { marginTop: spacing.md, backgroundColor: colors.surfaceMuted, borderRadius: radius.md, padding: spacing.md },
-  rentPayPanelLabel: { fontSize: 11, color: colors.textSecondary, marginBottom: 6, fontWeight: '600' },
-  rentUpiText: { flex: 1, backgroundColor: colors.inputBg, borderWidth: 1, borderColor: colors.border, color: colors.text, padding: 10, borderRadius: radius.sm, fontSize: 13, marginRight: 8 },
-  rentCopyBtn: { borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, paddingVertical: 6, paddingHorizontal: 12 },
-  rentCopyBtnText: { color: colors.text, fontSize: 12, fontWeight: '600' },
+  rentInput: { borderWidth: 1, borderColor: palette.border, borderRadius: radius.sm, padding: spacing.sm, fontSize: 14, marginBottom: spacing.sm, color: palette.text, backgroundColor: palette.inputBg },
+  rentAmount: { fontSize: 22, fontWeight: '700', color: palette.text, letterSpacing: -0.5 },
+  rentStatusBox: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: palette.border, paddingTop: spacing.md, marginTop: spacing.sm },
+  rentPayPanel: { marginTop: spacing.md, backgroundColor: palette.surfaceMuted, borderRadius: radius.md, padding: spacing.md },
+  rentPayPanelLabel: { fontSize: 11, color: palette.textSecondary, marginBottom: 6, fontWeight: '600' },
+  rentUpiText: { flex: 1, backgroundColor: palette.inputBg, borderWidth: 1, borderColor: palette.border, color: palette.text, padding: 10, borderRadius: radius.sm, fontSize: 13, marginRight: 8 },
+  rentCopyBtn: { borderWidth: 1, borderColor: palette.border, borderRadius: radius.sm, paddingVertical: 6, paddingHorizontal: 12 },
+  rentCopyBtnText: { color: palette.text, fontSize: 12, fontWeight: '600' },
 
-  modalOverlay: { flex: 1, backgroundColor: colors.overlay, alignItems: 'center', justifyContent: 'center' },
+  modalOverlay: { flex: 1, backgroundColor: palette.overlay, alignItems: 'center', justifyContent: 'center' },
   modalImage: { width: '92%', height: '75%', borderRadius: radius.md },
-  modalCloseBtn: { marginTop: 20, backgroundColor: colors.surfaceElevated, paddingVertical: 12, paddingHorizontal: 28, borderRadius: radius.md },
-  modalCloseBtnText: { color: colors.text, fontWeight: '600', fontSize: 15 },
+  modalCloseBtn: { marginTop: 20, backgroundColor: palette.surfaceElevated, paddingVertical: 12, paddingHorizontal: 28, borderRadius: radius.md },
+  modalCloseBtnText: { color: palette.text, fontWeight: '600', fontSize: 15 },
   })
 }

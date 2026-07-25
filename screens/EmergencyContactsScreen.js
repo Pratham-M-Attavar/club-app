@@ -155,14 +155,14 @@ function ContactCard({ icon, label, number, placeholder, onCall }) {
 }
 
 const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: colors.paper },
+  page: { flex: 1, backgroundColor: colors.bg },
   sectionLabel: { ...type.eyebrow, marginBottom: spacing.sm },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   icon: { fontSize: 30 },
-  label: { fontSize: 15, fontWeight: '700', color: colors.ink },
-  number: { fontSize: 18, fontWeight: '700', color: colors.cove, marginTop: 2 },
+  label: { fontSize: 15, fontWeight: '700', color: colors.text },
+  number: { fontSize: 18, fontWeight: '700', color: colors.accent, marginTop: 2 },
   numberMuted: { ...type.bodyMuted, marginTop: 2, fontStyle: 'italic' },
-  callBadge: { backgroundColor: colors.cove, borderRadius: radius.pill, paddingVertical: 6, paddingHorizontal: 14 },
-  callBadgeText: { color: colors.white, fontWeight: '700', fontSize: 12.5 },
-  input: { borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, padding: spacing.md, fontSize: 14, marginTop: spacing.xs, color: colors.ink, backgroundColor: colors.white },
+  callBadge: { backgroundColor: colors.accent, borderRadius: radius.pill, paddingVertical: 6, paddingHorizontal: 14 },
+  callBadgeText: { color: colors.text, fontWeight: '700', fontSize: 12.5 },
+  input: { borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, padding: spacing.md, fontSize: 14, marginTop: spacing.xs, color: colors.text, backgroundColor: colors.surface },
 })

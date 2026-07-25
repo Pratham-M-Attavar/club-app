@@ -1,10 +1,15 @@
 import { TouchableOpacity, Text, StyleSheet, ActivityIndicator } from 'react-native'
-import { useTheme } from '../../lib/ThemeContext'
-import { spacing, radius } from '../../lib/theme'
 
+import {
+    colors,
+    spacing,
+    radius,
+    type,
+    shadow
+} from '../../lib/theme'
 export default function Button({ label, onPress, variant = 'primary', disabled, loading, style, textStyle }) {
-  const { theme } = useTheme()
-  const c = theme.colors
+  
+  const c = colors
 
   const variants = {
     primary: { bg: c.accent, text: '#FFFFFF', border: 'transparent' },

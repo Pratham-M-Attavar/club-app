@@ -4,8 +4,9 @@ import { Ionicons } from '@expo/vector-icons'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 import Screen from '../components/Screen'
-import { Card, EmptyState } from '../components/UI'
-import { colors, spacing, typography } from '../lib/theme'
+import Card from '../components/ui/Card'
+import EmptyState from '../components/ui/EmptyState'
+import { colors, spacing, type } from '../lib/theme'
 import { formatDate } from '../lib/format'
 
 export default function DocumentsScreen({ navigation }) {
@@ -33,7 +34,7 @@ export default function DocumentsScreen({ navigation }) {
   return (
     <Screen refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await load(); setRefreshing(false) }}>
       <TouchableOpacity style={styles.back} onPress={() => navigation.goBack()}>
-        <Ionicons name="arrow-back" size={20} color={colors.primary} />
+        <Ionicons name="arrow-back" size={20} color={colors.accent} />
         <Text style={styles.backText}>Back</Text>
       </TouchableOpacity>
 
@@ -49,7 +50,7 @@ export default function DocumentsScreen({ navigation }) {
         docs.map(d => (
           <TouchableOpacity key={d.id} onPress={() => openDoc(d)}>
             <Card style={styles.docRow}>
-              <Ionicons name="document-text-outline" size={24} color={colors.primary} />
+              <Ionicons name="document-text-outline" size={24} color={colors.accent} />
               <View style={{ flex: 1, marginLeft: 12 }}>
                 <Text style={styles.docTitle}>{d.title}</Text>
                 <Text style={styles.docMeta}>
@@ -67,9 +68,9 @@ export default function DocumentsScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   back: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: spacing.md },
-  backText: { fontSize: 14, fontWeight: '600', color: colors.primary },
-  title: { ...typography.h1, color: colors.primary },
-  sub: { ...typography.caption, marginBottom: spacing.lg },
+  backText: { fontSize: 14, fontWeight: '600', color: colors.accent },
+  title: { ...type.h1, color: colors.accent },
+  sub: { ...type.caption, marginBottom: spacing.lg },
   docRow: { flexDirection: 'row', alignItems: 'center' },
   docTitle: { fontSize: 14, fontWeight: '700', color: colors.text },
   docMeta: { fontSize: 12, color: colors.textMuted, marginTop: 2, textTransform: 'capitalize' },

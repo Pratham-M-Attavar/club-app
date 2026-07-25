@@ -4,8 +4,10 @@ import { Ionicons } from '@expo/vector-icons'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 import Screen from '../components/Screen'
-import { Card, EmptyState, StatusBadge } from '../components/UI'
-import { colors, spacing, typography } from '../lib/theme'
+import Card from '../components/ui/Card'
+import EmptyState from '../components/ui/EmptyState'
+import Badge from '../components/ui/Badge'
+import { colors, spacing, type } from '../lib/theme'
 import { bookingStatusVariant, formatCategory, formatDateTime } from '../lib/format'
 
 export default function MyBookingsScreen({ navigation }) {
@@ -34,7 +36,7 @@ export default function MyBookingsScreen({ navigation }) {
   return (
     <Screen refreshing={refreshing} onRefresh={onRefresh}>
       <TouchableOpacity style={styles.back} onPress={() => navigation.goBack()}>
-        <Ionicons name="arrow-back" size={20} color={colors.primary} />
+        <Ionicons name="arrow-back" size={20} color={colors.accent} />
         <Text style={styles.backText}>Back</Text>
       </TouchableOpacity>
 
@@ -58,9 +60,9 @@ export default function MyBookingsScreen({ navigation }) {
                 <Text style={styles.meta}>Slot: {formatDateTime(b.slot_time)}</Text>
                 <Text style={styles.meta}>Requested {formatDateTime(b.created_at)}</Text>
               </View>
-              <StatusBadge
+              <Badge
                 label={b.status?.replace('_', ' ')}
-                variant={bookingStatusVariant(b.status)}
+                tone={bookingStatusVariant(b.status) === 'success' ? 'success' : bookingStatusVariant(b.status) === 'warning' ? 'warning' : 'neutral'}
               />
             </View>
           </Card>
@@ -72,9 +74,9 @@ export default function MyBookingsScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   back: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: spacing.md },
-  backText: { fontSize: 14, fontWeight: '600', color: colors.primary },
-  title: { ...typography.h1, color: colors.primary },
-  sub: { ...typography.caption, marginBottom: spacing.lg },
+  backText: { fontSize: 14, fontWeight: '600', color: colors.accent },
+  title: { ...type.h1, color: colors.accent },
+  sub: { ...type.caption, marginBottom: spacing.lg },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   vendorName: { fontSize: 15, fontWeight: '700', color: colors.text },
   meta: { fontSize: 12, color: colors.textMuted, marginTop: 3 },

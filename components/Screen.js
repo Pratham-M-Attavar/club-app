@@ -1,7 +1,6 @@
-import { View, ScrollView, RefreshControl, StyleSheet } from 'react-native'
+import { View, ScrollView, RefreshControl } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { useTheme } from '../lib/ThemeContext'
-import { spacing } from '../lib/theme'
+import { colors, spacing } from '../lib/theme'
 
 export default function Screen({
   children,
@@ -13,8 +12,7 @@ export default function Screen({
   edges = ['top'],
 }) {
   const insets = useSafeAreaInsets()
-  const { theme } = useTheme()
-  const c = theme.colors
+  const c = colors
 
   const padding = {
     paddingTop: edges.includes('top') ? insets.top + spacing.sm : 0,

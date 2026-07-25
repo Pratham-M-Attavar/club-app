@@ -1,10 +1,10 @@
-import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native'
+import { NavigationContainer, DarkTheme } from '@react-navigation/native'
 import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs'
 import { createNativeStackNavigator } from '@react-navigation/native-stack'
 import { Ionicons } from '@expo/vector-icons'
 import { StatusBar } from 'expo-status-bar'
 import { AuthProvider, useAuth } from './lib/AuthContext'
-import { ThemeProvider, useTheme } from './lib/ThemeContext'
+import { colors } from './lib/theme'
 import LoginScreen from './screens/LoginScreen'
 import PendingApprovalScreen from './screens/PendingApprovalScreen'
 import HomeScreen from './screens/HomeScreen'
@@ -19,6 +19,7 @@ import CollectionsScreen from './screens/CollectionsScreen'
 import TicketsScreen from './screens/TicketsScreen'
 import VendorBookingsScreen from './screens/VendorBookingsScreen'
 import ManageCommitteeScreen from './screens/ManageCommitteeScreen'
+import OwnerTenantScreen from './screens/OwnerTenantScreen'
 import { View, Text, ActivityIndicator, StyleSheet } from 'react-native'
 
 const Tab = createMaterialTopTabNavigator()
@@ -26,22 +27,27 @@ const CommitteeStack = createNativeStackNavigator()
 const ServicesStack = createNativeStackNavigator()
 const HomeStack = createNativeStackNavigator()
 
-function stackScreenOptions(theme) {
-  const c = theme.colors
+function stackScreenOptions() {
+  const c = colors
+
   return {
     headerStyle: { backgroundColor: c.surface },
     headerTintColor: c.text,
-    headerTitleStyle: { fontWeight: '600', fontSize: 17, letterSpacing: -0.3 },
+    headerTitleStyle: {
+      fontWeight: '600',
+      fontSize: 17,
+      letterSpacing: -0.3,
+    },
     headerShadowVisible: false,
     contentStyle: { backgroundColor: c.bg },
   }
 }
 
 function CommitteeStackNavigator() {
-  const { theme } = useTheme()
+  
   return (
-    <CommitteeStack.Navigator screenOptions={stackScreenOptions(theme)}>
-      <CommitteeStack.Screen name="CommitteeMenu" component={CommitteeMenuScreen} options={{ title: 'Committee' }} />
+    <CommitteeStack.Navigator screenOptions={stackScreenOptions()}>
+      <CommitteeStack.Screen name="CommitteeMenu" component={CommitteeMenuScreen} options={{ title: 'Manage' }} />
       <CommitteeStack.Screen name="Notices" component={NoticesScreen} options={{ title: 'Notices' }} />
       <CommitteeStack.Screen name="Collections" component={CollectionsScreen} options={{ title: 'Collections' }} />
       <CommitteeStack.Screen name="Tickets" component={TicketsScreen} options={{ title: 'Tickets' }} />
@@ -53,9 +59,9 @@ function CommitteeStackNavigator() {
 }
 
 function HomeStackNavigator() {
-  const { theme } = useTheme()
+ 
   return (
-    <HomeStack.Navigator screenOptions={stackScreenOptions(theme)}>
+    <HomeStack.Navigator screenOptions={stackScreenOptions()}>
       <HomeStack.Screen name="HomeMain" component={HomeScreen} options={{ headerShown: false }} />
       <HomeStack.Screen name="PaymentHistory" component={PaymentHistoryScreen} options={{ title: 'Payment history' }} />
     </HomeStack.Navigator>
@@ -63,9 +69,8 @@ function HomeStackNavigator() {
 }
 
 function ServicesStackNavigator() {
-  const { theme } = useTheme()
   return (
-    <ServicesStack.Navigator screenOptions={stackScreenOptions(theme)}>
+    <ServicesStack.Navigator screenOptions={stackScreenOptions()}>
       <ServicesStack.Screen name="ServicesHome" component={ServicesScreen} options={{ headerShown: false }} />
       <ServicesStack.Screen
         name="VendorDetail"
@@ -82,9 +87,10 @@ function TabIcon({ name, color, focused }) {
 }
 
 function MainTabs() {
-  const { isCommittee } = useAuth()
-  const { theme } = useTheme()
-  const c = theme.colors
+  const { isCommittee, profile } = useAuth()
+  
+  const c =colors
+  const showOwnerTenantTab = profile?.ownership === 'owner'
 
   return (
     <Tab.Navigator
@@ -99,15 +105,16 @@ function MainTabs() {
         tabBarInactiveTintColor: c.tabInactive,
         tabBarStyle: {
           backgroundColor: c.tabBar,
-          borderTopWidth: StyleSheet.hairlineWidth,
-          borderTopColor: c.tabBarBorder,
+          borderTopWidth: 0,
           elevation: 0,
           shadowOpacity: 0,
-          height: 64,
-          paddingBottom: 8,
+          height: 58,
+          paddingBottom: 4,
           paddingTop: 6,
+          paddingHorizontal: 8,
         },
-        tabBarLabelStyle: { fontSize: 11, fontWeight: '600', textTransform: 'none', letterSpacing: -0.1 },
+        tabBarItemStyle: { height: 46, borderRadius: 14 },
+        tabBarLabelStyle: { fontSize: 10, fontWeight: '600', textTransform: 'none', letterSpacing: -0.1, marginTop: 2 },
         tabBarPressColor: 'transparent',
       }}
     >
@@ -134,13 +141,23 @@ function MainTabs() {
           }}
         />
       )}
+      {showOwnerTenantTab && (
+        <Tab.Screen
+          name="OwnerTenant"
+          component={OwnerTenantScreen}
+          options={{
+            tabBarLabel: 'Maintenance',
+            tabBarIcon: ({ color, focused }) => <TabIcon name="business-outline" color={color} focused={focused} />,
+          }}
+        />
+      )}
     </Tab.Navigator>
   )
 }
 
 function LoadingView({ message = 'Loading…' }) {
-  const { theme } = useTheme()
-  const c = theme.colors
+ 
+  const c = colors
   return (
     <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: c.bg }}>
       <ActivityIndicator color={c.accent} size="large" />
@@ -151,17 +168,17 @@ function LoadingView({ message = 'Loading…' }) {
 
 function Root() {
   const { session, profile, loading } = useAuth()
-  const { theme, isDark } = useTheme()
+
 
   const navTheme = {
-    ...(isDark ? DarkTheme : DefaultTheme),
+    ...DarkTheme,
     colors: {
-      ...(isDark ? DarkTheme.colors : DefaultTheme.colors),
-      primary: theme.colors.accent,
-      background: theme.colors.bg,
-      card: theme.colors.surface,
-      text: theme.colors.text,
-      border: theme.colors.border,
+      ...DarkTheme.colors,
+      primary: colors.accent,
+      background: colors.bg,
+      card: colors.surface,
+      text: colors.text,
+      border: colors.border,
     },
   }
 
@@ -170,7 +187,7 @@ function Root() {
   if (!session) {
     return (
       <>
-        <StatusBar style={isDark ? 'light' : 'dark'} />
+        <StatusBar style="light" />
         <NavigationContainer theme={navTheme}>
           <LoginScreen />
         </NavigationContainer>
@@ -183,7 +200,7 @@ function Root() {
   if (profile.approval_status !== 'approved') {
     return (
       <>
-        <StatusBar style={isDark ? 'light' : 'dark'} />
+        <StatusBar style="light" />
         <NavigationContainer theme={navTheme}>
           <PendingApprovalScreen />
         </NavigationContainer>
@@ -193,7 +210,7 @@ function Root() {
 
   return (
     <>
-      <StatusBar style={isDark ? 'light' : 'dark'} />
+      <StatusBar style="light" />
       <NavigationContainer theme={navTheme}>
         <MainTabs />
       </NavigationContainer>
@@ -203,10 +220,10 @@ function Root() {
 
 export default function App() {
   return (
-    <ThemeProvider>
+    
       <AuthProvider>
         <Root />
       </AuthProvider>
-    </ThemeProvider>
+  
   )
 }

@@ -95,8 +95,8 @@ export default function PendingResidentsScreen() {
 }
 
 const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: colors.paper },
-  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.paper },
-  name: { fontSize: 15, fontWeight: '700', color: colors.ink, marginBottom: 2 },
+  page: { flex: 1, backgroundColor: colors.bg },
+  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg },
+  name: { fontSize: 15, fontWeight: '700', color: colors.text, marginBottom: 2 },
   actionsRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
 })

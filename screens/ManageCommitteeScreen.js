@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator } from 'react-native'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
+import { colors, spacing, radius } from '../lib/theme'
 
 export default function ManageCommitteeScreen() {
   const { profile } = useAuth()
@@ -32,14 +33,14 @@ export default function ManageCommitteeScreen() {
   if (loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator />
+        <ActivityIndicator color={colors.accent} />
         <Text style={styles.muted}>Loading residents…</Text>
       </View>
     )
   }
 
   return (
-    <ScrollView style={styles.page} contentContainerStyle={{ padding: 20 }}>
+    <ScrollView style={styles.page} contentContainerStyle={styles.contentContainer}>
       <Text style={styles.title}>Manage committee</Text>
       <Text style={styles.sub}>Promote a resident to committee, or step someone down.</Text>
 
@@ -66,25 +67,26 @@ export default function ManageCommitteeScreen() {
 }
 
 const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: '#f4f1ea' },
-  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#f4f1ea' },
-  muted: { fontSize: 12, color: '#6b7674', marginTop: 8 },
-  title: { fontSize: 20, fontWeight: '700', color: '#14262a' },
-  sub: { fontSize: 13, color: '#6b7674', marginTop: 4, marginBottom: 16 },
+  page: { flex: 1, backgroundColor: colors.bg },
+  contentContainer: { paddingHorizontal: spacing.xl, paddingTop: spacing.lg, paddingBottom: spacing.xxl },
+  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg },
+  muted: { fontSize: 12, color: colors.textSecondary, marginTop: 8 },
+  title: { fontSize: 20, fontWeight: '700', color: colors.text },
+  sub: { fontSize: 13, color: colors.textSecondary, marginTop: 4, marginBottom: 16 },
 
   row: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff',
-    borderWidth: 1, borderColor: '#e4ddd0', borderRadius: 12, padding: 14, marginBottom: 10,
+    flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface,
+    borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, padding: 14, marginBottom: 10,
   },
-  flatNumber: { fontWeight: '600', fontSize: 13.5, color: '#1d2b2a', marginBottom: 6 },
+  flatNumber: { fontWeight: '600', fontSize: 13.5, color: colors.text, marginBottom: 6 },
 
-  roleChip: { alignSelf: 'flex-start', paddingVertical: 3, paddingHorizontal: 10, borderRadius: 20 },
-  roleChipCommittee: { backgroundColor: '#e8d9b8' },
-  roleChipResident: { backgroundColor: '#dfe9e6' },
+  roleChip: { alignSelf: 'flex-start', paddingVertical: 3, paddingHorizontal: 10, borderRadius: radius.pill },
+  roleChipCommittee: { backgroundColor: colors.warningBg },
+  roleChipResident: { backgroundColor: colors.successBg },
   roleText: { fontSize: 11, fontWeight: '700' },
-  roleTextCommittee: { color: '#8a641e' },
-  roleTextResident: { color: '#3a6b63' },
+  roleTextCommittee: { color: colors.warning },
+  roleTextResident: { color: colors.success },
 
-  toggleBtn: { borderWidth: 1, borderColor: '#e4ddd0', borderRadius: 6, paddingVertical: 6, paddingHorizontal: 12 },
-  toggleBtnText: { fontSize: 11.5, fontWeight: '700', color: '#1d2b2a' },
+  toggleBtn: { borderWidth: 1, borderColor: colors.border, borderRadius: 6, paddingVertical: 6, paddingHorizontal: 12 },
+  toggleBtnText: { fontSize: 11.5, fontWeight: '700', color: colors.text },
 })
