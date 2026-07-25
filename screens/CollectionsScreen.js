@@ -79,8 +79,16 @@ export default function CollectionsScreen() {
     setGenerating(false)
   }
 
-  async function markPaid(dueId) {
-    await supabase.from('dues').update({ status: 'paid', paid_at: new Date().toISOString() }).eq('id', dueId)
+  async function markPaid(due) {
+    await supabase
+      .from('dues')
+      .update({ status: 'paid', paid_at: new Date().toISOString(), proof_url: null })
+      .eq('id', due.id)
+
+    if (due.proof_url) {
+      const { error } = await supabase.storage.from('payment-proofs').remove([due.proof_url])
+      if (error) console.log('Could not delete proof file:', error.message)
+    }
     loadData()
   }
 
@@ -224,7 +232,7 @@ export default function CollectionsScreen() {
                 )}
 
                 {status !== 'paid' && (
-                  <TouchableOpacity style={styles.markPaidBtn} onPress={() => markPaid(r.due.id)}>
+                  <TouchableOpacity style={styles.markPaidBtn} onPress={() => markPaid(r.due)}>
                     <Text style={styles.markPaidBtnText}>
                       {status === 'submitted' ? 'Confirm payment' : 'Mark paid'}
                     </Text>

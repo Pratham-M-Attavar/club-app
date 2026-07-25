@@ -1,10 +1,12 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { View, Text, TouchableOpacity, TextInput, StyleSheet, ScrollView, Linking, Alert, Modal, Image } from 'react-native'
 import * as Clipboard from 'expo-clipboard'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
-import { colors, spacing, radius, type, NOTICE_CATEGORY_TONES } from '../lib/theme'
+import { useTheme } from '../lib/ThemeContext'
+import { spacing, radius, NOTICE_CATEGORY_TONES } from '../lib/theme'
+
 import { generateReceipt } from '../lib/receipt'
 import { pickAndUploadProof } from '../lib/paymentProof'
 import { pickAndUploadRentProof } from '../lib/rentProof'
@@ -21,6 +23,10 @@ const CATEGORIES = ['plumbing', 'electrical', 'security', 'cleanliness', 'other'
 
 export default function HomeScreen({ navigation }) {
   const { profile, signOut } = useAuth()
+  const { theme } = useTheme()
+  const styles = useMemo(() => createStyles(theme), [theme])
+  const type = theme.type
+  const colors = theme.colors
   const [currentDue, setCurrentDue] = useState(null)
   const [duesLoading, setDuesLoading] = useState(true)
   const [tickets, setTickets] = useState([])
@@ -119,7 +125,6 @@ export default function HomeScreen({ navigation }) {
   useEffect(() => {
     if (!profile?.flat_id || !flatInfo) return
     if (!counterpart) {
-      // No linked owner/tenant on this flat — rent doesn't apply.
       setRentPayment(null)
       setRentLoading(false)
       return
@@ -145,7 +150,6 @@ export default function HomeScreen({ navigation }) {
     const ownerId = profile.ownership === 'owner' ? profile.id : counterpart.id
 
     if (profile.ownership === 'tenant') {
-      // Tenant is responsible for ensuring this month's row exists.
       await supabase.from('rent_payments').upsert(
         {
           flat_id: profile.flat_id,
@@ -285,8 +289,14 @@ export default function HomeScreen({ navigation }) {
     setConfirmingRent(true)
     const { error } = await supabase
       .from('rent_payments')
-      .update({ status: 'paid', paid_at: new Date().toISOString() })
+      .update({ status: 'paid', paid_at: new Date().toISOString(), proof_url: null })
       .eq('id', rentPayment.id)
+
+    if (!error && rentPayment.proof_url) {
+      const { error: removeError } = await supabase.storage.from('payment-proofs').remove([rentPayment.proof_url])
+      if (removeError) console.log('Could not delete rent proof file:', removeError.message)
+    }
+
     setConfirmingRent(false)
     if (error) {
       Alert.alert('Could not confirm', error.message)
@@ -317,19 +327,20 @@ export default function HomeScreen({ navigation }) {
   }
 
   const openTickets = tickets.filter(t => t.status !== 'done')
-  // Default to 'owner' if flatInfo hasn't loaded yet or the flat predates this
-  // column, matching the migration's default.
   const maintenancePayer = flatInfo?.maintenance_payer || 'owner'
   const payerIsMe = profile.ownership === maintenancePayer
   const counterpartLabel = profile.ownership === 'owner' ? 'tenant' : 'owner'
 
   return (
     <SafeAreaView style={styles.page} edges={['top']}>
-    <ScrollView style={styles.page} contentContainerStyle={{ padding: spacing.xl }}>
-      <Text style={type.display}>Hi {profile.full_name?.split(' ')[0]}</Text>
-      <Text style={[type.bodyMuted, { marginTop: 2, marginBottom: spacing.xl }]}>Flat {profile.flat_number}</Text>
+    <ScrollView style={styles.page} contentContainerStyle={{ padding: spacing.xl }} showsVerticalScrollIndicator={false}>
+      <View style={styles.headerRow}>
+        <View style={{ flex: 1 }}>
+          <Text style={type.display}>Hi, {profile.full_name?.split(' ')[0]}</Text>
+          <Text style={[type.bodyMuted, { marginTop: 4 }]}>Flat {profile.flat_number}</Text>
+        </View>
+      </View>
 
-      {/* Maintenance payer toggle — owner only */}
       {profile.ownership === 'owner' && counterpart && (
         <Card>
           <Text style={type.eyebrow}>Who pays maintenance?</Text>
@@ -355,7 +366,6 @@ export default function HomeScreen({ navigation }) {
         </Card>
       )}
 
-      {/* Dues */}
       {duesLoading ? (
         <DuesCardSkeleton />
       ) : (
@@ -372,7 +382,7 @@ export default function HomeScreen({ navigation }) {
               <Text style={styles.duesAmount}>₹{currentDue.total}</Text>
 
               {currentDue.status === 'paid' ? (
-                <Button label="Download receipt →" onPress={downloadReceipt} variant="outline" style={styles.onDarkOutline} textStyle={{ color: colors.white }} />
+                <Button label="Download receipt" onPress={downloadReceipt} variant="outline" style={styles.onDarkOutline} textStyle={{ color: colors.heroText }} />
               ) : currentDue.status === 'submitted' ? (
                 <View style={styles.awaitingBox}>
                   <Text style={styles.awaitingText}>
@@ -384,14 +394,14 @@ export default function HomeScreen({ navigation }) {
                     loading={uploadingProof}
                     variant="outline"
                     style={[styles.onDarkOutline, { marginTop: spacing.sm }]}
-                    textStyle={{ color: colors.white }}
+                    textStyle={{ color: colors.heroText }}
                   />
                 </View>
               ) : (
                 <>
                   {payerIsMe ? (
                     <>
-                      <Button label={showPayPanel ? 'Hide payment details' : 'Pay now →'} onPress={() => setShowPayPanel(!showPayPanel)} variant="primary" />
+                      <Button label={showPayPanel ? 'Hide payment' : 'Pay now'} onPress={() => setShowPayPanel(!showPayPanel)} variant="primary" />
 
                       {showPayPanel && (
                         <View style={styles.payPanel}>
@@ -415,7 +425,7 @@ export default function HomeScreen({ navigation }) {
                         loading={uploadingProof}
                         variant="outline"
                         style={[styles.onDarkOutline, { marginTop: spacing.md }]}
-                        textStyle={{ color: colors.white }}
+                        textStyle={{ color: colors.heroText }}
                       />
                     </>
                   ) : (
@@ -432,7 +442,7 @@ export default function HomeScreen({ navigation }) {
                 label="View payment history →"
                 onPress={() => navigation.navigate('PaymentHistory')}
                 variant="ghost"
-                textStyle={{ color: '#CFE0DC' }}
+                textStyle={{ color: colors.heroMuted }}
                 style={{ marginTop: spacing.md, paddingHorizontal: 0 }}
               />
             </>
@@ -442,7 +452,6 @@ export default function HomeScreen({ navigation }) {
         </Card>
       )}
 
-      {/* Rent — only relevant if a linked owner/tenant exists on this flat */}
       {!rentLoading && counterpart && (
         <Card>
           <Text style={type.eyebrow}>Rent</Text>
@@ -563,7 +572,6 @@ export default function HomeScreen({ navigation }) {
         </Card>
       )}
 
-      {/* Tickets */}
       <Card>
         <Text style={type.eyebrow}>Your open requests</Text>
 
@@ -622,7 +630,6 @@ export default function HomeScreen({ navigation }) {
         )}
       </Card>
 
-      {/* Notices */}
       <Card>
         <Text style={type.eyebrow}>Notices</Text>
 
@@ -676,45 +683,49 @@ export default function HomeScreen({ navigation }) {
   )
 }
 
-const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: colors.paper },
-  centerFill: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
+const createStyles = theme => {
+  const colors = theme.colors
+  return StyleSheet.create({
+  page: { flex: 1, backgroundColor: colors.bg },
+  centerFill: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl, backgroundColor: colors.bg },
+  headerRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: spacing.xl, gap: spacing.md },
 
-  duesLabel: { fontSize: 11, color: '#A9BCB7', textTransform: 'uppercase', fontWeight: '700', marginRight: spacing.sm },
-  duesAmount: { fontSize: 32, fontWeight: '700', color: colors.paper, marginBottom: spacing.md },
-  onDarkOutline: { borderColor: colors.inkFaint },
-  awaitingBox: { backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: radius.md, padding: spacing.md },
-  awaitingText: { fontSize: 12.5, color: '#CFE0DC', lineHeight: 18 },
+  duesLabel: { fontSize: 11, color: colors.heroMuted, textTransform: 'uppercase', fontWeight: '700', marginRight: spacing.sm },
+  duesAmount: { fontSize: 34, fontWeight: '700', color: colors.heroText, marginBottom: spacing.md, letterSpacing: -1 },
+  onDarkOutline: { borderColor: colors.heroMuted, backgroundColor: 'transparent' },
+  awaitingBox: { backgroundColor: theme.isDark ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.1)', borderRadius: radius.md, padding: spacing.md },
+  awaitingText: { fontSize: 13, color: colors.heroMuted, lineHeight: 20 },
 
-  payPanel: { marginTop: spacing.md, backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: radius.md, padding: spacing.md },
-  payPanelLabel: { fontSize: 11, color: '#A9BCB7', marginBottom: 6 },
-  upiId: { backgroundColor: 'rgba(0,0,0,0.25)', color: colors.paper, padding: 8, borderRadius: 6, fontSize: 13, marginRight: 8 },
-  copyBtn: { borderWidth: 1, borderColor: colors.inkFaint, borderRadius: 6, paddingVertical: 5, paddingHorizontal: 10 },
-  copyBtnText: { color: '#CFE0DC', fontSize: 11.5 },
-  payNote: { fontSize: 11, color: '#A9BCB7', marginTop: spacing.md, lineHeight: 16 },
+  payPanel: { marginTop: spacing.md, backgroundColor: theme.isDark ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.1)', borderRadius: radius.md, padding: spacing.md },
+  payPanelLabel: { fontSize: 11, color: colors.heroMuted, marginBottom: 6, fontWeight: '600' },
+  upiId: { flex: 1, backgroundColor: 'rgba(0,0,0,0.2)', color: colors.heroText, padding: 10, borderRadius: radius.sm, fontSize: 13, marginRight: 8, fontWeight: '500' },
+  copyBtn: { borderWidth: 1, borderColor: colors.heroMuted, borderRadius: radius.sm, paddingVertical: 6, paddingHorizontal: 12 },
+  copyBtnText: { color: colors.heroText, fontSize: 12, fontWeight: '600' },
+  payNote: { fontSize: 12, color: colors.heroMuted, marginTop: spacing.md, lineHeight: 18 },
 
-  row: { paddingVertical: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  rowTitle: { fontWeight: '600', fontSize: 13.5, color: colors.ink, flexShrink: 1, marginRight: spacing.sm },
-  noticeBody: { fontSize: 13, color: colors.ink, marginTop: 6, lineHeight: 18 },
+  row: { paddingVertical: spacing.md, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  rowTitle: { fontWeight: '600', fontSize: 15, color: colors.text, flexShrink: 1, marginRight: spacing.sm },
+  noticeBody: { fontSize: 14, color: colors.textSecondary, marginTop: 8, lineHeight: 21 },
 
-  categoryRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: spacing.sm },
-  categoryChip: { borderWidth: 1, borderColor: colors.border, borderRadius: radius.pill, paddingVertical: 6, paddingHorizontal: 12 },
-  categoryChipActive: { backgroundColor: colors.ink, borderRadius: radius.pill, paddingVertical: 6, paddingHorizontal: 12 },
-  categoryChipText: { fontSize: 12, color: colors.ink },
-  categoryChipTextActive: { fontSize: 12, color: colors.white },
-  textArea: { borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md, fontSize: 13, minHeight: 70, textAlignVertical: 'top', marginBottom: spacing.sm, color: colors.ink },
+  categoryRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: spacing.sm },
+  categoryChip: { borderWidth: 1, borderColor: colors.border, borderRadius: radius.pill, paddingVertical: 8, paddingHorizontal: 14, backgroundColor: colors.chip },
+  categoryChipActive: { backgroundColor: colors.chipActive, borderColor: colors.chipActive, borderRadius: radius.pill, paddingVertical: 8, paddingHorizontal: 14 },
+  categoryChipText: { fontSize: 13, color: colors.chipText, fontWeight: '500' },
+  categoryChipTextActive: { fontSize: 13, color: colors.chipTextActive, fontWeight: '600' },
+  textArea: { borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md, fontSize: 15, minHeight: 88, textAlignVertical: 'top', marginBottom: spacing.sm, color: colors.text, backgroundColor: colors.inputBg },
 
-  rentInput: { borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, padding: spacing.md, fontSize: 14, marginBottom: spacing.sm, color: colors.ink, backgroundColor: colors.white },
-  rentAmount: { fontSize: 20, fontWeight: '700', color: colors.ink },
-  rentStatusBox: { borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.md, marginTop: spacing.sm },
-  rentPayPanel: { marginTop: spacing.md, backgroundColor: colors.paperDim, borderRadius: radius.md, padding: spacing.md },
-  rentPayPanelLabel: { fontSize: 11, color: colors.textMuted, marginBottom: 6 },
-  rentUpiText: { backgroundColor: colors.white, borderWidth: 1, borderColor: colors.border, color: colors.ink, padding: 8, borderRadius: 6, fontSize: 13, marginRight: 8 },
-  rentCopyBtn: { borderWidth: 1, borderColor: colors.border, borderRadius: 6, paddingVertical: 5, paddingHorizontal: 10 },
-  rentCopyBtnText: { color: colors.ink, fontSize: 11.5 },
+  rentInput: { borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, padding: spacing.md, fontSize: 15, marginBottom: spacing.sm, color: colors.text, backgroundColor: colors.inputBg },
+  rentAmount: { fontSize: 22, fontWeight: '700', color: colors.text, letterSpacing: -0.5 },
+  rentStatusBox: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border, paddingTop: spacing.md, marginTop: spacing.sm },
+  rentPayPanel: { marginTop: spacing.md, backgroundColor: colors.surfaceMuted, borderRadius: radius.md, padding: spacing.md },
+  rentPayPanelLabel: { fontSize: 11, color: colors.textSecondary, marginBottom: 6, fontWeight: '600' },
+  rentUpiText: { flex: 1, backgroundColor: colors.inputBg, borderWidth: 1, borderColor: colors.border, color: colors.text, padding: 10, borderRadius: radius.sm, fontSize: 13, marginRight: 8 },
+  rentCopyBtn: { borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, paddingVertical: 6, paddingHorizontal: 12 },
+  rentCopyBtnText: { color: colors.text, fontSize: 12, fontWeight: '600' },
 
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', alignItems: 'center', justifyContent: 'center' },
-  modalImage: { width: '92%', height: '75%' },
-  modalCloseBtn: { marginTop: 20, backgroundColor: 'rgba(255,255,255,0.15)', paddingVertical: 10, paddingHorizontal: 24, borderRadius: 8 },
-  modalCloseBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
-})
+  modalOverlay: { flex: 1, backgroundColor: colors.overlay, alignItems: 'center', justifyContent: 'center' },
+  modalImage: { width: '92%', height: '75%', borderRadius: radius.md },
+  modalCloseBtn: { marginTop: 20, backgroundColor: colors.surfaceElevated, paddingVertical: 12, paddingHorizontal: 28, borderRadius: radius.md },
+  modalCloseBtnText: { color: colors.text, fontWeight: '600', fontSize: 15 },
+  })
+}

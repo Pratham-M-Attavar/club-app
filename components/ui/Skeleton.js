@@ -1,10 +1,11 @@
 import { useEffect, useRef } from 'react'
 import { View, Animated, StyleSheet } from 'react-native'
-import { colors, radius } from '../../lib/theme'
+import { useTheme } from '../../lib/ThemeContext'
+import { radius, spacing } from '../../lib/theme'
 
-// Single shimmering block. Compose a few of these to build skeleton screens
-// (e.g. a tall one for the dues amount, a few short ones for list rows).
-export function SkeletonBlock({ width = '100%', height = 14, style }) {
+export function SkeletonBlock({ width = '100%', height = 14, style, dark = false }) {
+  const { theme } = useTheme()
+  const c = theme.colors
   const opacity = useRef(new Animated.Value(0.4)).current
 
   useEffect(() => {
@@ -16,23 +17,33 @@ export function SkeletonBlock({ width = '100%', height = 14, style }) {
     )
     loop.start()
     return () => loop.stop()
-  }, [])
+  }, [opacity])
 
   return (
     <Animated.View
-      style={[{ width, height, borderRadius: radius.sm, backgroundColor: colors.paperDim, opacity }, style]}
+      style={[
+        {
+          width,
+          height,
+          borderRadius: radius.sm,
+          backgroundColor: dark ? c.heroMuted : c.skeleton,
+          opacity,
+        },
+        style,
+      ]}
     />
   )
 }
 
-// Pre-built skeleton for the Home dues card, so loading looks like the real
-// content is about to appear rather than a blank spinner.
 export function DuesCardSkeleton() {
+  const { theme } = useTheme()
+  const c = theme.colors
+
   return (
-    <View style={styles.duesSkeleton}>
-      <SkeletonBlock width={110} height={10} style={{ marginBottom: 10, backgroundColor: colors.inkFaint }} />
-      <SkeletonBlock width={140} height={28} style={{ marginBottom: 14, backgroundColor: colors.inkFaint }} />
-      <SkeletonBlock width={100} height={34} style={{ backgroundColor: colors.inkFaint, borderRadius: radius.md }} />
+    <View style={[styles.duesSkeleton, { backgroundColor: c.hero, borderRadius: radius.lg }]}>
+      <SkeletonBlock width={110} height={10} dark style={{ marginBottom: 10 }} />
+      <SkeletonBlock width={140} height={28} dark style={{ marginBottom: 14 }} />
+      <SkeletonBlock width={100} height={36} dark style={{ borderRadius: radius.md }} />
     </View>
   )
 }
@@ -47,5 +58,5 @@ export function RowSkeleton() {
 }
 
 const styles = StyleSheet.create({
-  duesSkeleton: { backgroundColor: colors.ink, borderRadius: radius.lg, padding: 18 },
+  duesSkeleton: { padding: spacing.lg, marginBottom: spacing.lg },
 })

@@ -1,22 +1,35 @@
 import { TouchableOpacity, Text, StyleSheet, ActivityIndicator } from 'react-native'
-import { colors, spacing, radius, type } from '../../lib/theme'
+import { useTheme } from '../../lib/ThemeContext'
+import { spacing, radius } from '../../lib/theme'
 
-// variant: 'primary' | 'secondary' | 'outline' | 'ghost'
 export default function Button({ label, onPress, variant = 'primary', disabled, loading, style, textStyle }) {
-  const variantStyle = styles[variant] || styles.primary
-  const variantTextStyle = textStyles[variant] || textStyles.primary
+  const { theme } = useTheme()
+  const c = theme.colors
+
+  const variants = {
+    primary: { bg: c.accent, text: '#FFFFFF', border: 'transparent' },
+    secondary: { bg: c.text, text: c.surface, border: 'transparent' },
+    outline: { bg: 'transparent', text: c.text, border: c.borderStrong },
+    ghost: { bg: 'transparent', text: c.accent, border: 'transparent' },
+  }
+  const v = variants[variant] || variants.primary
 
   return (
     <TouchableOpacity
-      style={[styles.base, variantStyle, disabled && styles.disabled, style]}
+      style={[
+        styles.base,
+        { backgroundColor: v.bg, borderColor: v.border, borderWidth: variant === 'outline' ? 1.5 : 0 },
+        disabled && styles.disabled,
+        style,
+      ]}
       onPress={onPress}
       disabled={disabled || loading}
-      activeOpacity={0.75}
+      activeOpacity={0.8}
     >
       {loading ? (
-        <ActivityIndicator size="small" color={variant === 'primary' ? colors.white : colors.ink} />
+        <ActivityIndicator size="small" color={v.text} />
       ) : (
-        <Text style={[textStyles.base, variantTextStyle, textStyle]}>{label}</Text>
+        <Text style={[styles.text, { color: v.text }, textStyle]}>{label}</Text>
       )}
     </TouchableOpacity>
   )
@@ -24,25 +37,13 @@ export default function Button({ label, onPress, variant = 'primary', disabled, 
 
 const styles = StyleSheet.create({
   base: {
-    paddingVertical: spacing.md,
+    paddingVertical: 14,
     paddingHorizontal: spacing.lg,
     borderRadius: radius.md,
     alignSelf: 'flex-start',
     alignItems: 'center',
     justifyContent: 'center',
-    flexDirection: 'row',
   },
-  primary: { backgroundColor: colors.laterite },
-  secondary: { backgroundColor: colors.inkSoft },
-  outline: { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: colors.border },
-  ghost: { backgroundColor: 'transparent', paddingHorizontal: spacing.sm },
-  disabled: { opacity: 0.5 },
-})
-
-const textStyles = StyleSheet.create({
-  base: { fontSize: 13.5, fontWeight: '700' },
-  primary: { color: colors.white },
-  secondary: { color: colors.white },
-  outline: { color: colors.ink },
-  ghost: { color: colors.laterite },
+  text: { fontSize: 15, fontWeight: '600', letterSpacing: -0.2 },
+  disabled: { opacity: 0.45 },
 })

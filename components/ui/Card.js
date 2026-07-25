@@ -1,14 +1,26 @@
 import { View, StyleSheet } from 'react-native'
-import { colors, spacing, radius, shadow } from '../../lib/theme'
+import { useTheme } from '../../lib/ThemeContext'
+import { spacing, radius } from '../../lib/theme'
 
-// Signature detail: a thin laterite-colored cap along the top edge, echoing
-// the ridge line of a tiled roof. Used sparingly — only on "featured" cards
-// (dues, the one thing on Home that matters most) so it doesn't become wallpaper.
-export default function Card({ children, style, featured = false, dark = false }) {
+export default function Card({ children, style, featured = false, dark = false, padded = true }) {
+  const { theme } = useTheme()
+  const c = theme.colors
+
   return (
-    <View style={[styles.base, dark ? styles.dark : styles.light, style]}>
-      {featured && <View style={styles.accentCap} />}
-      <View style={dark ? styles.innerDark : styles.innerLight}>{children}</View>
+    <View
+      style={[
+        styles.base,
+        theme.shadow.card,
+        {
+          backgroundColor: dark ? c.hero : c.surface,
+          borderColor: dark ? 'transparent' : c.border,
+          borderWidth: dark ? 0 : StyleSheet.hairlineWidth,
+        },
+        style,
+      ]}
+    >
+      {featured && !dark && <View style={[styles.accentCap, { backgroundColor: c.accent }]} />}
+      <View style={padded ? styles.inner : undefined}>{children}</View>
     </View>
   )
 }
@@ -18,11 +30,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     marginBottom: spacing.lg,
     overflow: 'hidden',
-    ...shadow.card,
   },
-  light: { backgroundColor: colors.white, borderWidth: 1, borderColor: colors.border },
-  dark: { backgroundColor: colors.ink },
-  accentCap: { height: 4, backgroundColor: colors.laterite },
-  innerLight: { padding: spacing.lg },
-  innerDark: { padding: spacing.xl },
+  accentCap: { height: 3 },
+  inner: { padding: spacing.lg },
 })

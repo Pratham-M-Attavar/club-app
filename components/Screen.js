@@ -1,6 +1,7 @@
 import { View, ScrollView, RefreshControl, StyleSheet } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { colors, spacing } from '../lib/theme'
+import { useTheme } from '../lib/ThemeContext'
+import { spacing } from '../lib/theme'
 
 export default function Screen({
   children,
@@ -12,16 +13,18 @@ export default function Screen({
   edges = ['top'],
 }) {
   const insets = useSafeAreaInsets()
+  const { theme } = useTheme()
+  const c = theme.colors
 
   const padding = {
-    paddingTop: edges.includes('top') ? insets.top + spacing.xxl : 0,
+    paddingTop: edges.includes('top') ? insets.top + spacing.sm : 0,
     paddingBottom: edges.includes('bottom') ? insets.bottom + spacing.lg : spacing.lg,
     paddingHorizontal: spacing.xl,
   }
 
   if (!scroll) {
     return (
-      <View style={[styles.root, padding, style]}>
+      <View style={[{ flex: 1, backgroundColor: c.bg }, padding, style]}>
         {children}
       </View>
     )
@@ -29,20 +32,17 @@ export default function Screen({
 
   return (
     <ScrollView
-      style={[styles.root, style]}
+      style={[{ flex: 1, backgroundColor: c.bg }, style]}
       contentContainerStyle={[padding, contentStyle]}
       refreshControl={
         onRefresh ? (
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.accent} />
         ) : undefined
       }
       keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={false}
     >
       {children}
     </ScrollView>
   )
 }
-
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.bg },
-})
