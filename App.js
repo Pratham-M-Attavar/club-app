@@ -195,7 +195,13 @@ function Root() {
     )
   }
 
-  if (!profile) return <LoadingView />
+  // Google users receive a valid Supabase session before their resident
+  // profile is complete. Reuse the existing onboarding wizard for them.
+  if (!profile) {
+    const isGoogleUser = session.user.app_metadata?.provider === 'google'
+      || session.user.identities?.some(identity => identity.provider === 'google')
+    return isGoogleUser ? <LoginScreen onboardingUser={session.user} /> : <LoadingView />
+  }
 
   if (profile.approval_status !== 'approved') {
     return (

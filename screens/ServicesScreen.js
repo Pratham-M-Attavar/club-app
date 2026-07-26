@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, FlatList, ScrollView } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 import { colors, spacing, radius, type, VENDOR_CATEGORIES } from '../lib/theme'
@@ -11,6 +12,7 @@ import { RowSkeleton } from '../components/ui/Skeleton'
 
 export default function ServicesScreen({ navigation }) {
   const { profile } = useAuth()
+  const insets = useSafeAreaInsets()
   const [vendors, setVendors] = useState([])
   const [loading, setLoading] = useState(true)
   const [query, setQuery] = useState('')
@@ -45,7 +47,11 @@ export default function ServicesScreen({ navigation }) {
   )
 
   return (
-    <ScrollView style={styles.page} contentContainerStyle={styles.contentContainer}>
+    <ScrollView
+      style={styles.page}
+      contentContainerStyle={[styles.contentContainer, { paddingTop: insets.top + spacing.xl }]}
+      showsVerticalScrollIndicator={false}
+    >
       <View style={styles.headerBlock}>
         <Text style={type.display}>Services</Text>
         <Text style={[type.bodyMuted, { marginTop: 4 }]}>Trusted vendors for your society</Text>
@@ -151,8 +157,8 @@ function StarRating({ rating }) {
 
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: colors.bg },
-  contentContainer: { paddingHorizontal: spacing.xl, paddingTop: spacing.xl, paddingBottom: spacing.xxl },
-  headerBlock: { marginBottom: spacing.lg, marginTop: spacing.md },
+  contentContainer: { paddingHorizontal: spacing.xl, paddingBottom: spacing.xxl },
+  headerBlock: { marginBottom: spacing.lg },
   emergencyBanner: {
     flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
     backgroundColor: colors.accentSoft, borderRadius: radius.md,

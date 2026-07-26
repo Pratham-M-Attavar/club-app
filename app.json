@@ -2,6 +2,7 @@
   "expo": {
     "name": "club-mobile",
     "slug": "club-mobile",
+    "scheme": "club-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -15,14 +16,21 @@
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
-      }
+      },
+      "package": "com.anonymous.clubmobile"
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
       "expo-sharing",
-      "expo-status-bar"
-    ]
+      "expo-status-bar",
+      "expo-web-browser"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "0ccba1ed-50a3-44be-84e9-1643bffe1dff"
+      }
+    }
   }
 }

@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo } from 'react'
 import { View, Text, TouchableOpacity, TextInput, StyleSheet, ScrollView, Linking, Alert, Modal, Image } from 'react-native'
+import { Ionicons } from '@expo/vector-icons'
 import * as Clipboard from 'expo-clipboard'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { supabase } from '../lib/supabase'
@@ -39,7 +40,7 @@ export default function HomeScreen({ navigation }) {
   const [ticketsLoading, setTicketsLoading] = useState(true)
   const [notices, setNotices] = useState([])
   const [noticesLoading, setNoticesLoading] = useState(true)
-  const [openNoticeId, setOpenNoticeId] = useState(null)
+  const [selectedNotice, setSelectedNotice] = useState(null)
   const [showPayPanel, setShowPayPanel] = useState(false)
   const [showRentPayPanel, setShowRentPayPanel] = useState(false)
   const [showTicketForm, setShowTicketForm] = useState(false)
@@ -334,7 +335,7 @@ export default function HomeScreen({ navigation }) {
                 )}
               </View>
 
-              {currentDue.status === 'paid' ? null : currentDue.status === 'submitted' ? (
+              {currentDue.status === 'paid' ? null : currentDue.status === 'Fsubmitted' ? (
                 <View style={styles.awaitingBox}>
                   <Text style={styles.awaitingText}>
                     Payment proof submitted{currentDue.proof_uploaded_at ? ` on ${new Date(currentDue.proof_uploaded_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}` : ''} — awaiting committee confirmation.
@@ -506,8 +507,20 @@ export default function HomeScreen({ navigation }) {
         </Card>
       )}
 
-      <Card style={styles.softCard}>
-        <Text style={styles.sectionEyebrow}>Requests</Text>
+      <Card featured style={styles.ticketsCard}>
+        <View style={styles.cardHeader}>
+          <View style={styles.sectionTitleWrap}>
+            <View style={styles.ticketsAccent} />
+            <View>
+              <Text style={styles.cardTitle}>REQUESTS</Text>
+            </View>
+          </View>
+          {!ticketsLoading && openTickets.length > 0 && (
+            <View style={styles.ticketCount}>
+              <Text style={styles.ticketCountText}>{openTickets.length} open</Text>
+            </View>
+          )}
+        </View>
 
         {ticketsLoading ? (
           <>
@@ -564,8 +577,15 @@ export default function HomeScreen({ navigation }) {
         )}
       </Card>
 
-      <Card style={styles.softCard}>
-        <Text style={styles.sectionEyebrow}>Notices</Text>
+      <Card style={styles.noticesCard}>
+        <View style={styles.cardHeader}>
+          <View style={styles.sectionTitleWrap}>
+            <View style={styles.noticesAccent} />
+            <View>
+              <Text style={styles.noticesTitle}>NOTICES</Text>
+            </View>
+          </View>
+        </View>
 
         {noticesLoading ? (
           <>
@@ -575,22 +595,23 @@ export default function HomeScreen({ navigation }) {
         ) : notices.length === 0 ? (
           <EmptyState title="No notices yet" subtitle="Committee announcements will show up here." />
         ) : (
-          notices.map(n => {
-            const isOpen = openNoticeId === n.id
-            return (
-              <TouchableOpacity key={n.id} style={styles.row} onPress={() => setOpenNoticeId(isOpen ? null : n.id)}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', width: '100%' }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flexShrink: 1 }}>
-                    <Badge label={n.category || 'general'} tone={NOTICE_CATEGORY_TONES[n.category] || 'neutral'} />
-                    <Text style={styles.rowTitle}>{n.title}</Text>
-                  </View>
-                  <Text style={type.caption}>{isOpen ? '▲' : '▼'}</Text>
-                </View>
-                <Text style={type.caption}>{new Date(n.created_at).toLocaleDateString()}</Text>
-                {isOpen && <Text style={styles.noticeBody}>{n.body || 'No additional details.'}</Text>}
-              </TouchableOpacity>
-            )
-          })
+          notices.map(n => (
+            <TouchableOpacity
+              key={n.id}
+              style={styles.noticeItem}
+              activeOpacity={0.76}
+              onPress={() => setSelectedNotice(n)}
+            >
+              <View style={styles.noticeItemTopRow}>
+                <Badge label={n.category || 'general'} tone={NOTICE_CATEGORY_TONES[n.category] || 'neutral'} />
+                <Text style={styles.noticeTimestamp}>{relativeTime(n.created_at)}</Text>
+              </View>
+              <View style={styles.noticeItemBody}>
+                <Text style={styles.noticeItemTitle} numberOfLines={2}>{n.title || 'Untitled notice'}</Text>
+                <Ionicons name="chevron-forward" size={18} color={palette.textTertiary} />
+              </View>
+            </TouchableOpacity>
+          ))
         )}
       </Card>
 
@@ -613,6 +634,37 @@ export default function HomeScreen({ navigation }) {
         </TouchableOpacity>
       </View>
     </Modal>
+
+    <Modal
+      visible={!!selectedNotice}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setSelectedNotice(null)}
+    >
+      <View style={styles.noticeModalOverlay}>
+        <TouchableOpacity style={StyleSheet.absoluteFillObject} activeOpacity={1} onPress={() => setSelectedNotice(null)} />
+        {selectedNotice && (
+          <View style={styles.noticeModalCard}>
+            <View style={styles.noticeModalHeader}>
+              <Badge label={selectedNotice.category || 'general'} tone={NOTICE_CATEGORY_TONES[selectedNotice.category] || 'neutral'} />
+              <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityLabel="Close notice"
+                hitSlop={10}
+                onPress={() => setSelectedNotice(null)}
+                style={styles.noticeModalClose}
+              >
+                <Ionicons name="close" size={20} color={palette.textSecondary} />
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.noticeModalTitle}>{selectedNotice.title || 'Untitled notice'}</Text>
+            <Text style={styles.noticeModalDate}>Posted {formatNoticeDate(selectedNotice.created_at)}</Text>
+            <View style={styles.noticeModalDivider} />
+            <Text style={styles.noticeModalBody}>{selectedNotice.body || 'No additional details were provided.'}</Text>
+          </View>
+        )}
+      </View>
+    </Modal>
     </SafeAreaView>
   )
 }
@@ -630,15 +682,25 @@ const createStyles = () => {
   heroBadgeText: { fontSize: 11, fontWeight: '600', color: palette.textSecondary },
   heroPanel: { backgroundColor: palette.surfaceElevated, borderWidth: 1, borderColor: palette.border, borderRadius: radius.lg, marginBottom: spacing.md },
   softCard: { backgroundColor: palette.surface, borderWidth: 1, borderColor: palette.border, borderRadius: radius.lg, marginBottom: spacing.md },
+  ticketsCard: { backgroundColor: palette.surface, borderColor: palette.borderStrong, marginBottom: spacing.md },
+  noticesCard: { backgroundColor: palette.surface, borderColor: palette.border, marginBottom: spacing.md },
+  cardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.xs },
+  sectionTitleWrap: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  ticketsAccent: { width: 10, height: 10, borderRadius: radius.pill, backgroundColor: palette.accent },
+  noticesAccent: { width: 10, height: 10, borderRadius: radius.pill, backgroundColor: palette.warning },
+  cardTitle: { fontSize: 16, fontWeight: '700', color: palette.text, letterSpacing: -0.25 },
+  noticesTitle: { fontSize: 16, fontWeight: '700', color: palette.text, letterSpacing: -0.4 },
+  ticketCount: { backgroundColor: palette.accentSoft, paddingHorizontal: spacing.sm, paddingVertical: 5, borderRadius: radius.pill },
+  ticketCountText: { color: palette.accentPressed, fontSize: 11, fontWeight: '700' },
   sectionEyebrow: { fontSize: 10, fontWeight: '700', color: palette.textSecondary, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: spacing.xs },
-  duesLabelLarge: { fontSize: 13, color: palette.text, textTransform: 'uppercase', fontWeight: '700', marginRight: spacing.sm },
+  duesLabelLarge: { fontSize: 16, color: palette.text, textTransform: 'uppercase', fontWeight: '700', marginRight: spacing.sm },
   rentCard: { borderWidth: 1, borderColor: palette.border, backgroundColor: palette.surface, borderRadius: radius.lg, marginBottom: spacing.md },
 
   duesHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.xs },
   duesTitleWrap: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   duesAccent: { width: 10, height: 10, borderRadius: 999, backgroundColor: palette.accent },
   rentAccent: { width: 10, height: 10, borderRadius: 999, backgroundColor: palette.warning },
-  duesLabel: { fontSize: 11, color: palette.text, textTransform: 'uppercase', fontWeight: '700', marginRight: spacing.sm },
+  duesLabel: { fontSize: 16, color: palette.text, textTransform: 'uppercase', fontWeight: '700', marginRight: spacing.sm },
   duesAmountRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.sm },
   duesAmount: { fontSize: 28, fontWeight: '700', color: palette.heroText, letterSpacing: -0.8 },
   receiptButton: { borderColor: palette.heroMuted, backgroundColor: 'transparent', paddingHorizontal: 10, paddingVertical: 6 },
@@ -661,6 +723,11 @@ const createStyles = () => {
   rowTitle: { fontWeight: '600', fontSize: 13, color: palette.text, flexShrink: 1, marginRight: spacing.sm },
   ticketRowTitle: { fontWeight: '600', fontSize: 12.5, color: palette.text, flexShrink: 1, marginRight: spacing.sm, maxWidth: '78%' },
   noticeBody: { fontSize: 12.5, color: palette.textSecondary, marginTop: 4, lineHeight: 18 },
+  noticeItem: { backgroundColor: palette.surfaceMuted, borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.sm },
+  noticeItemTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.sm },
+  noticeTimestamp: { fontSize: 11, color: palette.textTertiary, fontWeight: '500' },
+  noticeItemBody: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  noticeItemTitle: { flex: 1, fontSize: 14, lineHeight: 20, fontWeight: '700', color: palette.text },
 
   categoryRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: spacing.sm },
   categoryChip: { borderWidth: 1, borderColor: palette.border, borderRadius: radius.pill, paddingVertical: 6, paddingHorizontal: 12, backgroundColor: palette.chip },
@@ -670,7 +737,7 @@ const createStyles = () => {
   textArea: { borderWidth: 1, borderColor: palette.border, borderRadius: radius.md, padding: spacing.sm, fontSize: 14, minHeight: 78, textAlignVertical: 'top', marginBottom: spacing.sm, color: palette.text, backgroundColor: palette.inputBg },
 
   rentInput: { borderWidth: 1, borderColor: palette.border, borderRadius: radius.sm, padding: spacing.sm, fontSize: 14, marginBottom: spacing.sm, color: palette.text, backgroundColor: palette.inputBg },
-  rentAmount: { fontSize: 22, fontWeight: '700', color: palette.text, letterSpacing: -0.5 },
+  rentAmount: { fontSize: 15, fontWeight: '700', color: palette.text, letterSpacing: -0.5 },
   rentStatusBox: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: palette.border, paddingTop: spacing.md, marginTop: spacing.sm },
   rentPayPanel: { marginTop: spacing.md, backgroundColor: palette.surfaceMuted, borderRadius: radius.md, padding: spacing.md },
   rentPayPanelLabel: { fontSize: 11, color: palette.textSecondary, marginBottom: 6, fontWeight: '600' },
@@ -682,5 +749,33 @@ const createStyles = () => {
   modalImage: { width: '92%', height: '75%', borderRadius: radius.md },
   modalCloseBtn: { marginTop: 20, backgroundColor: palette.surfaceElevated, paddingVertical: 12, paddingHorizontal: 28, borderRadius: radius.md },
   modalCloseBtnText: { color: palette.text, fontWeight: '600', fontSize: 15 },
+  noticeModalOverlay: { flex: 1, backgroundColor: 'rgba(2, 6, 23, 0.72)', padding: spacing.xl, justifyContent: 'center' },
+  noticeModalCard: { backgroundColor: palette.surface, borderRadius: radius.xl, borderWidth: 1, borderColor: palette.borderStrong, padding: spacing.xl, ...shadow.card },
+  noticeModalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.lg },
+  noticeModalClose: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.surfaceMuted },
+  noticeModalTitle: { fontSize: 22, lineHeight: 29, fontWeight: '700', letterSpacing: -0.45, color: palette.text },
+  noticeModalDate: { fontSize: 12, color: palette.textTertiary, marginTop: spacing.sm },
+  noticeModalDivider: { height: StyleSheet.hairlineWidth, backgroundColor: palette.border, marginVertical: spacing.lg },
+  noticeModalBody: { fontSize: 15, lineHeight: 23, color: palette.textSecondary },
+  })
+}
+
+function relativeTime(value) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  const diffMinutes = Math.max(0, Math.floor((Date.now() - date.getTime()) / 60000))
+  if (diffMinutes < 1) return 'Just now'
+  if (diffMinutes < 60) return `${diffMinutes} min ago`
+  const diffHours = Math.floor(diffMinutes / 60)
+  if (diffHours < 24) return `${diffHours} hour${diffHours === 1 ? '' : 's'} ago`
+  if (diffHours < 48) return 'Yesterday'
+  return date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
+}
+
+function formatNoticeDate(value) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return 'recently'
+  return date.toLocaleString('en-IN', {
+    day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit'
   })
 }

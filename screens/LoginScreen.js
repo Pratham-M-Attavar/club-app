@@ -1,11 +1,19 @@
 import { useState, useEffect } from 'react'
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { Ionicons } from '@expo/vector-icons'
+import * as WebBrowser from 'expo-web-browser'
+import * as AuthSession from 'expo-auth-session'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../lib/AuthContext'
 import { colors, spacing, radius, type } from '../lib/theme'
 import Button from '../components/ui/Button'
 
-export default function LoginScreen() {
+// Required once per app for the browser-based OAuth flow to properly close
+// and hand control back to the app after Google redirects.
+WebBrowser.maybeCompleteAuthSession()
+
+export default function LoginScreen({ onboardingUser }) {
   const [mode, setMode] = useState('signin') // 'signin' | 'signup'
 
   return (
@@ -15,16 +23,22 @@ export default function LoginScreen() {
           <Text style={styles.brandName}>Club</Text>
           <Text style={styles.brandSub}>Apartment living, simplified</Text>
 
-          <View style={styles.tabRow}>
-            <TouchableOpacity style={mode === 'signin' ? styles.tabActive : styles.tab} onPress={() => setMode('signin')}>
-              <Text style={mode === 'signin' ? styles.tabActiveText : styles.tabText}>Sign in</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={mode === 'signup' ? styles.tabActive : styles.tab} onPress={() => setMode('signup')}>
-              <Text style={mode === 'signup' ? styles.tabActiveText : styles.tabText}>New resident</Text>
-            </TouchableOpacity>
-          </View>
+          {onboardingUser ? (
+            <SignUpWizard googleUser={onboardingUser} />
+          ) : (
+            <>
+              <View style={styles.tabRow}>
+                <TouchableOpacity style={mode === 'signin' ? styles.tabActive : styles.tab} onPress={() => setMode('signin')}>
+                  <Text style={mode === 'signin' ? styles.tabActiveText : styles.tabText}>Sign in</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={mode === 'signup' ? styles.tabActive : styles.tab} onPress={() => setMode('signup')}>
+                  <Text style={mode === 'signup' ? styles.tabActiveText : styles.tabText}>New resident</Text>
+                </TouchableOpacity>
+              </View>
 
-          {mode === 'signin' ? <SignInForm /> : <SignUpWizard />}
+              {mode === 'signin' ? <SignInForm /> : <SignUpWizard />}
+            </>
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -37,6 +51,7 @@ function SignInForm() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [googleLoading, setGoogleLoading] = useState(false)
 
   async function handleSubmit() {
     setError('')
@@ -44,6 +59,50 @@ function SignInForm() {
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) setError(error.message)
     setLoading(false)
+  }
+
+  async function handleGoogleSignIn() {
+    setError('')
+    setGoogleLoading(true)
+    const redirectTo = AuthSession.makeRedirectUri({
+  scheme: 'club-mobile',
+})
+   console.log('REDIRECT URI:', redirectTo)
+    try {
+      const redirectTo = AuthSession.makeRedirectUri({
+  scheme: 'club-mobile',
+})
+
+      const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo, skipBrowserRedirect: true },
+        
+      })
+      console.log('OAuth URL:', data.url)
+      if (oauthError) throw oauthError
+
+      const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo)
+
+      if (result.type !== 'success') {
+        setGoogleLoading(false)
+        return
+      }
+
+      const fragment = result.url.split('#')[1] || result.url.split('?')[1] || ''
+      const params = new URLSearchParams(fragment)
+      const access_token = params.get('access_token')
+      const refresh_token = params.get('refresh_token')
+
+      if (!access_token || !refresh_token) {
+        throw new Error('Google sign-in did not return a valid session. Please try again.')
+      }
+
+      const { error: sessionError } = await supabase.auth.setSession({ access_token, refresh_token })
+      if (sessionError) throw sessionError
+    } catch (err) {
+      setError(err.message || 'Google sign-in failed. Please try again.')
+    }
+    setGoogleLoading(false)
   }
 
   return (
@@ -72,12 +131,31 @@ function SignInForm() {
         loading={loading}
         style={{ alignSelf: 'stretch' }}
       />
+
+      <View style={styles.dividerRow}>
+        <View style={styles.dividerLine} />
+        <Text style={styles.dividerText}>or</Text>
+        <View style={styles.dividerLine} />
+      </View>
+
+      <TouchableOpacity
+        style={styles.googleBtn}
+        onPress={handleGoogleSignIn}
+        disabled={googleLoading}
+        activeOpacity={0.8}
+      >
+        <Ionicons name="logo-google" size={18} color={colors.text} />
+        <Text style={styles.googleBtnText}>
+          {googleLoading ? 'Opening Google…' : 'Continue with Google'}
+        </Text>
+      </TouchableOpacity>
     </View>
   )
 }
 
 // ============ SIGN UP WIZARD ============
-function SignUpWizard() {
+function SignUpWizard({ googleUser }) {
+  const { signOut, refreshProfile } = useAuth()
   const [step, setStep] = useState('search-building')
 
   const [query, setQuery] = useState('')
@@ -92,7 +170,9 @@ function SignUpWizard() {
 
   const [ownership, setOwnership] = useState(null)
 
-  const [fullName, setFullName] = useState('')
+  const [fullName, setFullName] = useState(
+    googleUser?.user_metadata?.full_name || googleUser?.user_metadata?.name || ''
+  )
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -137,30 +217,48 @@ function SignUpWizard() {
     setStep('details')
   }
 
+  async function insertProfile(userId) {
+    const combinedFlatNumber = selectedBlock
+      ? `${selectedBlock.name}-${selectedFlat.flat_number}`
+      : selectedFlat.flat_number
+
+    const { error: profileError } = await supabase.from('profiles').insert({
+      id: userId,
+      full_name: fullName,
+      flat_number: combinedFlatNumber,
+      flat_type: selectedFlat.flat_type,
+      ownership,
+      role: 'resident',
+      building_id: selectedBuilding.id,
+      block_id: selectedBlock?.id || null,
+      flat_id: selectedFlat.id,
+    })
+    return profileError
+  }
+
   async function handleSubmit() {
     setError('')
     setLoading(true)
+
+    if (googleUser) {
+      const profileError = await insertProfile(googleUser.id)
+      if (profileError) {
+        console.log('Profile insert failed:', profileError.message)
+        setError(profileError.message)
+        setLoading(false)
+        return
+      }
+      await refreshProfile?.()
+      setLoading(false)
+      return
+    }
 
     const { data, error } = await supabase.auth.signUp({ email, password })
     if (error) { setError(error.message); setLoading(false); return }
 
     const userId = data.user?.id
     if (userId) {
-      const combinedFlatNumber = selectedBlock
-        ? `${selectedBlock.name}-${selectedFlat.flat_number}`
-        : selectedFlat.flat_number
-
-      const { error: profileError } = await supabase.from('profiles').insert({
-        id: userId,
-        full_name: fullName,
-        flat_number: combinedFlatNumber,
-        flat_type: selectedFlat.flat_type,
-        ownership,
-        role: 'resident',
-        building_id: selectedBuilding.id,
-        block_id: selectedBlock?.id || null,
-        flat_id: selectedFlat.id,
-      })
+      const profileError = await insertProfile(userId)
       if (profileError) {
         console.log('Profile insert failed:', profileError.message)
         setError(profileError.message)
@@ -171,6 +269,15 @@ function SignUpWizard() {
 
   return (
     <View>
+      {googleUser && (
+        <View style={styles.googleOnboardingBanner}>
+          <Text style={styles.googleOnboardingText}>Signed in as {googleUser.email}</Text>
+          <TouchableOpacity onPress={() => signOut()}>
+            <Text style={styles.googleOnboardingLink}>Not you? Sign out</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       <Text style={styles.breadcrumb}>
         {selectedBuilding?.name}
         {selectedBlock ? ` · Block ${selectedBlock.name}` : ''}
@@ -244,8 +351,12 @@ function SignUpWizard() {
       {step === 'details' && (
         <View>
           <TextInput style={styles.input} placeholder="Full name" placeholderTextColor={colors.textFaint} value={fullName} onChangeText={setFullName} />
-          <TextInput style={styles.input} placeholder="Email" placeholderTextColor={colors.textFaint} value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" />
-          <TextInput style={styles.input} placeholder="Password" placeholderTextColor={colors.textFaint} value={password} onChangeText={setPassword} secureTextEntry />
+          {!googleUser && (
+            <>
+              <TextInput style={styles.input} placeholder="Email" placeholderTextColor={colors.textFaint} value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" />
+              <TextInput style={styles.input} placeholder="Password" placeholderTextColor={colors.textFaint} value={password} onChangeText={setPassword} secureTextEntry />
+            </>
+          )}
           {error ? <Text style={styles.error}>{error}</Text> : null}
           <Button
             label={loading ? 'Please wait…' : 'Create account'}
@@ -289,4 +400,22 @@ const styles = StyleSheet.create({
   choiceBtn: { flex: 1, padding: spacing.lg, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border, alignItems: 'center' },
   choiceBtnText: { fontWeight: '600', fontSize: 14, color: colors.text },
   backLink: { fontSize: 12, color: colors.textMuted },
+
+  dividerRow: { flexDirection: 'row', alignItems: 'center', marginVertical: spacing.lg },
+  dividerLine: { flex: 1, height: 1, backgroundColor: colors.border },
+  dividerText: { marginHorizontal: spacing.md, fontSize: 12, color: colors.textFaint },
+
+  googleBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm,
+    borderWidth: 1.5, borderColor: colors.borderStrong, borderRadius: radius.md,
+    paddingVertical: 14, alignSelf: 'stretch',
+  },
+  googleBtnText: { fontSize: 15, fontWeight: '600', color: colors.text },
+
+  googleOnboardingBanner: {
+    backgroundColor: colors.surfaceMuted, borderRadius: radius.sm, padding: spacing.md,
+    marginBottom: spacing.lg,
+  },
+  googleOnboardingText: { fontSize: 13, color: colors.text, fontWeight: '600' },
+  googleOnboardingLink: { fontSize: 12, color: colors.accent, marginTop: 4 },
 })
