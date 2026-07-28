@@ -226,6 +226,16 @@ export default function HomeScreen({ navigation }) {
   const isTenant = profile?.ownership === 'tenant'
   const isOwnerWithTenant = profile?.ownership === 'owner' && Boolean(counterpart)
 
+  // Who currently owes maintenance for this flat. Defaults to 'owner' when
+  // unset (matches OwnerTenantScreen's default). Only meaningful when the
+  // owner actually has a tenant on the flat.
+  const maintenancePayer = flatInfo?.maintenance_payer || 'owner'
+  // True when the person viewing this screen is the one responsible for
+  // paying maintenance this month.
+  const viewerOwesMaintenance = isTenant
+    ? maintenancePayer === 'tenant'
+    : !isOwnerWithTenant || maintenancePayer === 'owner'
+
   const rentAmountValue = rentPayment?.amount || flatInfo?.rent_amount || currentDue?.total || 0
   const formattedRentAmount = rentAmountValue ? `₹${Number(rentAmountValue).toLocaleString('en-IN')}` : '₹0'
 
@@ -262,8 +272,16 @@ export default function HomeScreen({ navigation }) {
         {/* Dynamic Main Rent / Maintenance Banner */}
         <TouchableOpacity
           style={styles.mainBannerCard}
-          onPress={() => (isTenant ? setShowRentPayPanel(true) : setShowPayPanel(true))}
-          activeOpacity={0.85}
+          onPress={() => {
+            if (isTenant) {
+              setShowRentPayPanel(true)
+            } else if (viewerOwesMaintenance) {
+              setShowPayPanel(true)
+            }
+            // Owner who has opted the tenant into paying maintenance sees
+            // an informational card only — no pay action to trigger.
+          }}
+          activeOpacity={isTenant || viewerOwesMaintenance ? 0.85 : 1}
         >
           <View style={styles.bannerTopRow}>
             <View style={styles.bannerIconWrap}>
@@ -287,14 +305,24 @@ export default function HomeScreen({ navigation }) {
           </View>
 
           <Text style={styles.rentLabel}>
-            {isTenant ? 'Monthly Rent' : 'Maintenance Fee'}
+            {isTenant
+              ? 'Monthly Rent'
+              : viewerOwesMaintenance
+              ? 'Maintenance Fee'
+              : 'Maintenance (Tenant Pays)'}
           </Text>
           <Text style={styles.rentAmount}>
-            {isTenant ? formattedRentAmount : formattedMaintenanceAmount}
+            {isTenant
+              ? formattedRentAmount
+              : viewerOwesMaintenance
+              ? formattedMaintenanceAmount
+              : '—'}
           </Text>
 
           <Text style={styles.rentSubtext}>
-            Due {currentMonthName} · Tap to pay via GPay / UPI
+            {isTenant || viewerOwesMaintenance
+              ? `Due ${currentMonthName} · Tap to pay via GPay / UPI`
+              : `${counterpart?.full_name || 'Tenant'} is responsible this month`}
           </Text>
         </TouchableOpacity>
 
@@ -342,8 +370,8 @@ export default function HomeScreen({ navigation }) {
             /* Standard Maintenance Card */
             <TouchableOpacity
               style={styles.colCard}
-              onPress={() => setShowPayPanel(true)}
-              activeOpacity={0.85}
+              onPress={() => viewerOwesMaintenance && setShowPayPanel(true)}
+              activeOpacity={viewerOwesMaintenance ? 0.85 : 1}
             >
               <View style={[styles.colIconWrap, { backgroundColor: c.successBg }]}>
                 <Ionicons name="build-outline" size={18} color={c.success} />
@@ -474,21 +502,56 @@ export default function HomeScreen({ navigation }) {
               </View>
             </View>
 
-            <TouchableOpacity
-              style={styles.primaryButton}
-              onPress={() => {
-                setShowRentPayPanel(false)
-                payViaGPay(
-                  flatInfo?.owner_upi_id || buildingInfo?.upi_id,
-                  counterpart?.full_name || 'Flat Owner',
-                  rentAmountValue,
-                  `Rent - Flat ${flatNumber}`
-                )
-              }}
-            >
-              <Ionicons name="logo-google" size={18} color={c.text} style={{ marginRight: 8 }} />
-              <Text style={styles.primaryButtonText}>Pay Now with GPay</Text>
-            </TouchableOpacity>
+            {/* Only the tenant pays rent. The owner (payee) sees a
+                read-only status line instead of a pay action. */}
+            {isTenant ? (
+              <TouchableOpacity
+                style={styles.primaryButton}
+                onPress={() => {
+                  setShowRentPayPanel(false)
+                  payViaGPay(
+                    flatInfo?.owner_upi_id || buildingInfo?.upi_id,
+                    counterpart?.full_name || 'Flat Owner',
+                    rentAmountValue,
+                    `Rent - Flat ${flatNumber}`
+                  )
+                }}
+              >
+                <Ionicons name="logo-google" size={18} color={c.text} style={{ marginRight: 8 }} />
+                <Text style={styles.primaryButtonText}>Pay Now with GPay</Text>
+              </TouchableOpacity>
+            ) : (
+              <View
+                style={[
+                  styles.paidStatusCard,
+                  rentPayment?.status !== 'paid' && {
+                    backgroundColor: c.warningBg,
+                    borderColor: 'rgba(245,158,11,0.3)',
+                  },
+                ]}
+              >
+                <Ionicons
+                  name={rentPayment?.status === 'paid' ? 'checkmark-circle-outline' : 'time-outline'}
+                  size={24}
+                  color={rentPayment?.status === 'paid' ? c.success : c.warning}
+                />
+                <View>
+                  <Text
+                    style={[
+                      styles.paidStatusTitle,
+                      rentPayment?.status !== 'paid' && { color: c.warning },
+                    ]}
+                  >
+                    {rentPayment?.status === 'paid' ? 'Rent Received' : 'Rent Pending'}
+                  </Text>
+                  <Text style={styles.paidStatusSub}>
+                    {rentPayment?.status === 'paid'
+                      ? `${currentMonthName} ✓`
+                      : `Waiting on ${counterpart?.full_name || 'tenant'} to pay`}
+                  </Text>
+                </View>
+              </View>
+            )}
           </View>
         </View>
       </Modal>
@@ -548,39 +611,51 @@ export default function HomeScreen({ navigation }) {
               </View>
             </View>
 
-            {/* Pay via GPay button */}
-            <TouchableOpacity
-              style={[styles.primaryButton, { marginBottom: 14 }]}
-              onPress={() => {
-                payViaGPay(
-                  buildingInfo?.upi_id || buildingInfo?.account_details,
-                  buildingInfo?.name || 'Building Maintenance',
-                  maintenanceTotal,
-                  `Maintenance - Flat ${flatNumber}`
-                )
-              }}
-            >
-              <Ionicons name="logo-google" size={18} color={c.text} style={{ marginRight: 8 }} />
-              <Text style={styles.primaryButtonText}>Pay Now with GPay</Text>
-            </TouchableOpacity>
+            {/* Pay via GPay button — only for whoever currently owes
+                maintenance this month (owner by default, or tenant if the
+                owner has toggled "Tenant Pays"). */}
+            {viewerOwesMaintenance ? (
+              <>
+                <TouchableOpacity
+                  style={[styles.primaryButton, { marginBottom: 14 }]}
+                  onPress={() => {
+                    payViaGPay(
+                      buildingInfo?.upi_id || buildingInfo?.account_details,
+                      buildingInfo?.name || 'Building Maintenance',
+                      maintenanceTotal,
+                      `Maintenance - Flat ${flatNumber}`
+                    )
+                  }}
+                >
+                  <Ionicons name="logo-google" size={18} color={c.text} style={{ marginRight: 8 }} />
+                  <Text style={styles.primaryButtonText}>Pay Now with GPay</Text>
+                </TouchableOpacity>
 
-            {/* Upload Receipt Dropzone */}
-            <TouchableOpacity
-              style={styles.uploadDropzone}
-              onPress={handleUploadProof}
-              activeOpacity={0.8}
-              disabled={uploadingProof}
-            >
-              {uploadingProof ? (
-                <ActivityIndicator color={c.accent} />
-              ) : (
-                <>
-                  <Ionicons name="cloud-upload-outline" size={24} color={c.textSecondary} />
-                  <Text style={styles.uploadTitle}>Upload Receipt / Payment Proof</Text>
-                  <Text style={styles.uploadSub}>PDF, PNG, or JPG · max 10 MB</Text>
-                </>
-              )}
-            </TouchableOpacity>
+                {/* Upload Receipt Dropzone */}
+                <TouchableOpacity
+                  style={styles.uploadDropzone}
+                  onPress={handleUploadProof}
+                  activeOpacity={0.8}
+                  disabled={uploadingProof}
+                >
+                  {uploadingProof ? (
+                    <ActivityIndicator color={c.accent} />
+                  ) : (
+                    <>
+                      <Ionicons name="cloud-upload-outline" size={24} color={c.textSecondary} />
+                      <Text style={styles.uploadTitle}>Upload Receipt / Payment Proof</Text>
+                      <Text style={styles.uploadSub}>PDF, PNG, or JPG · max 10 MB</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </>
+            ) : (
+              <Text style={{ fontSize: 13, color: c.textSecondary, textAlign: 'center', marginTop: 4 }}>
+                {isTenant
+                  ? 'The owner handles maintenance for this flat.'
+                  : `${counterpart?.full_name || 'Your tenant'} handles maintenance for this flat.`}
+              </Text>
+            )}
           </View>
         </View>
       </Modal>
