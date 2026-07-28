@@ -141,17 +141,16 @@ function MainTabs() {
           tabBarIcon: ({ color, focused }) => <TabIcon name="cube-outline" color={color} focused={focused} />,
         }}
       />
-      <Tab.Screen
-        name="Committee"
-        component={CommitteeStackNavigator}
-        options={{
-          tabBarLabel: 'Committee',
-          tabBarItemStyle: isCommittee
-            ? { height: 50, borderRadius: 12 }
-            : { display: 'none', width: 0, height: 0 },
-          tabBarIcon: ({ color, focused }) => <TabIcon name="people-outline" color={color} focused={focused} />,
-        }}
-      />
+      {isCommittee && (
+        <Tab.Screen
+          name="Committee"
+          component={CommitteeStackNavigator}
+          options={{
+            tabBarLabel: 'Committee',
+            tabBarIcon: ({ color, focused }) => <TabIcon name="people-outline" color={color} focused={focused} />,
+          }}
+        />
+      )}
       <Tab.Screen
         name="Requests"
         component={RequestsStackNavigator}
