@@ -1,28 +1,32 @@
 import { useCallback, useEffect, useState } from 'react'
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, FlatList, ScrollView } from 'react-native'
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  ScrollView,
+  FlatList,
+} from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { SafeAreaView } from 'react-native-safe-area-context'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
-import { colors, spacing, radius, type, VENDOR_CATEGORIES } from '../lib/theme'
-import Card from '../components/ui/Card'
-import Badge from '../components/ui/Badge'
-import EmptyState from '../components/ui/EmptyState'
-import { RowSkeleton } from '../components/ui/Skeleton'
+import { colors, radius, VENDOR_CATEGORIES } from '../lib/theme'
 
 export default function ServicesScreen({ navigation }) {
   const { profile } = useAuth()
-  const insets = useSafeAreaInsets()
+  const c = colors
+
   const [vendors, setVendors] = useState([])
   const [loading, setLoading] = useState(true)
   const [query, setQuery] = useState('')
-  const [category, setCategory] = useState(null)
+  const [selectedCat, setSelectedCat] = useState(null)
 
   const loadVendors = useCallback(async () => {
     if (!profile?.building_id) return
     setLoading(true)
 
-    // NOTE: matches your actual schema — approved (not "proved"), rating (not "ratings").
     let q = supabase
       .from('vendors')
       .select('*')
@@ -30,13 +34,12 @@ export default function ServicesScreen({ navigation }) {
       .eq('approved', true)
       .order('rating', { ascending: false })
 
-    if (category) q = q.eq('category', category)
+    if (selectedCat) q = q.eq('category', selectedCat)
 
-    const { data, error } = await q
-    if (error) console.log('loadVendors error:', error.message)
+    const { data } = await q
     setVendors(data || [])
     setLoading(false)
-  }, [profile, category])
+  }, [profile, selectedCat])
 
   useEffect(() => {
     loadVendors()
@@ -46,161 +49,301 @@ export default function ServicesScreen({ navigation }) {
     !query.trim() || v.name?.toLowerCase().includes(query.toLowerCase())
   )
 
-  return (
-    <ScrollView
-      style={styles.page}
-      contentContainerStyle={[styles.contentContainer, { paddingTop: insets.top + spacing.xl }]}
-      showsVerticalScrollIndicator={false}
-    >
-      <View style={styles.headerBlock}>
-        <Text style={type.display}>Services</Text>
-        <Text style={[type.bodyMuted, { marginTop: 4 }]}>Trusted vendors for your society</Text>
-      </View>
+  const GRID_CATEGORIES = [
+    { key: 'cleaning', label: 'Cleaning', icon: 'sparkles-outline' },
+    { key: 'electrical', label: 'Electrical', icon: 'flash-outline' },
+    { key: 'plumbing', label: 'Plumbing', icon: 'water-outline' },
+    { key: 'parking', label: 'Parking', icon: 'car-outline' },
+    { key: 'courier', label: 'Courier', icon: 'cube-outline' },
+    { key: 'internet', label: 'Internet', icon: 'wifi-outline', unavailable: true },
+    { key: 'security', label: 'Security', icon: 'shield-checkmark-outline' },
+    { key: 'housekeeping', label: 'Housekeeping', icon: 'home-outline' },
+    { key: 'moving', label: 'Moving', icon: 'navigate-outline' },
+  ]
 
-      <TouchableOpacity onPress={() => navigation.navigate('EmergencyContacts')}>
-        <View style={styles.emergencyBanner}>
-          <Text style={styles.emergencyIcon}>🚨</Text>
-          <Text style={styles.emergencyText}>Emergency Contacts</Text>
-          <Text style={styles.emergencyChevron}>›</Text>
+  return (
+    <SafeAreaView style={styles.container}>
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        {/* Title Header matching Page 2 */}
+        <View style={styles.headerBlock}>
+          <Text style={styles.titleText}>Services</Text>
+          <Text style={styles.subtitleText}>Book building services instantly</Text>
         </View>
-      </TouchableOpacity>
 
-      <View style={styles.searchBar}>
-        <Ionicons name="search-outline" size={16} color={colors.textFaint} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search vendors…"
-          placeholderTextColor={colors.textFaint}
-          value={query}
-          onChangeText={setQuery}
-        />
-      </View>
+        {/* Search Bar matching Page 2 */}
+        <View style={styles.searchBar}>
+          <Ionicons name="search-outline" size={18} color={c.textTertiary} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search services..."
+            placeholderTextColor={c.textTertiary}
+            value={query}
+            onChangeText={setQuery}
+          />
+        </View>
 
-      <FlatList
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        data={[{ key: null, label: 'All', icon: 'grid-outline' }, ...VENDOR_CATEGORIES]}
-        keyExtractor={item => item.key ?? 'all'}
-        contentContainerStyle={{ gap: spacing.sm, marginBottom: spacing.lg }}
-        renderItem={({ item }) => {
-          const active = category === item.key
-          return (
-            <TouchableOpacity
-              style={[styles.catChip, active && styles.catChipActive]}
-              onPress={() => setCategory(item.key)}
-            >
-              <Ionicons name={item.icon} size={15} color={active ? colors.text : colors.accent} />
-              <Text style={[styles.catLabel, active && styles.catLabelActive]}>{item.label}</Text>
-            </TouchableOpacity>
-          )
-        }}
-      />
-
-      {loading ? (
-        <>
-          <RowSkeleton />
-          <RowSkeleton />
-          <RowSkeleton />
-        </>
-      ) : filtered.length === 0 ? (
-        <EmptyState
-          title="No vendors yet"
-          subtitle="Vendors for your building will appear here once onboarded."
-        />
-      ) : (
-        filtered.map(v => (
-          <TouchableOpacity key={v.id} onPress={() => navigation.navigate('VendorDetail', { vendor: v })}>
-            <Card>
-              <View style={styles.vendorRow}>
-                <View style={styles.vendorIcon}>
-                  <Ionicons name="construct-outline" size={20} color={colors.accent} />
+        {/* 3-Column Category Grid matching Page 2 */}
+        <View style={styles.categoryGrid}>
+          {GRID_CATEGORIES.map(cat => {
+            const isSelected = selectedCat === cat.key
+            return (
+              <TouchableOpacity
+                key={cat.key}
+                style={[
+                  styles.gridCard,
+                  isSelected && styles.gridCardSelected,
+                  cat.unavailable && styles.gridCardDisabled,
+                ]}
+                onPress={() => {
+                  if (cat.unavailable) return
+                  setSelectedCat(selectedCat === cat.key ? null : cat.key)
+                }}
+                activeOpacity={cat.unavailable ? 1 : 0.8}
+              >
+                <View style={[styles.gridIconWrap, isSelected && styles.gridIconWrapSelected]}>
+                  <Ionicons
+                    name={cat.icon}
+                    size={22}
+                    color={cat.unavailable ? c.textTertiary : c.accent}
+                  />
                 </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.vendorName}>{v.name}</Text>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
-                    <Badge label={formatCategory(v.category)} tone="cove" />
-                    <Text style={type.caption}>{v.jobs_completed || 0} jobs done</Text>
+                <Text
+                  style={[
+                    styles.gridLabel,
+                    cat.unavailable && styles.gridLabelDisabled,
+                    isSelected && styles.gridLabelSelected,
+                  ]}
+                >
+                  {cat.label}
+                </Text>
+                {cat.unavailable && (
+                  <Text style={styles.unavailableText}>Unavailable</Text>
+                )}
+              </TouchableOpacity>
+            )
+          })}
+        </View>
+
+        {/* Emergency Contacts Banner */}
+        <TouchableOpacity
+          style={styles.emergencyBanner}
+          onPress={() => navigation.navigate('EmergencyContacts')}
+          activeOpacity={0.8}
+        >
+          <View style={styles.emergencyLeft}>
+            <View style={styles.emergencyIconWrap}>
+              <Ionicons name="call-outline" size={18} color={c.danger} />
+            </View>
+            <View>
+              <Text style={styles.emergencyTitle}>Emergency Contacts</Text>
+              <Text style={styles.emergencySub}>Security guard, lift manager, fire desk</Text>
+            </View>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={c.textTertiary} />
+        </TouchableOpacity>
+
+        {/* Vendor List for Selected Category / Search */}
+        {selectedCat || query.trim() ? (
+          <View style={{ marginTop: 24 }}>
+            <Text style={styles.sectionTitle}>
+              AVAILABLE VENDORS ({filtered.length})
+            </Text>
+            {filtered.length === 0 ? (
+              <Text style={styles.noVendorsText}>
+                No vendors found for this category.
+              </Text>
+            ) : (
+              filtered.map(v => (
+                <TouchableOpacity
+                  key={v.id}
+                  style={styles.vendorCard}
+                  onPress={() => navigation.navigate('VendorDetail', { vendor: v })}
+                >
+                  <View style={styles.vendorIconWrap}>
+                    <Ionicons name="construct-outline" size={20} color={c.accent} />
                   </View>
-                  <StarRating rating={v.rating} />
-                </View>
-                <Ionicons name="chevron-forward" size={18} color={colors.textFaint} />
-              </View>
-            </Card>
-          </TouchableOpacity>
-        ))
-      )}
-    </ScrollView>
-  )
-}
-
-function formatCategory(key) {
-  const found = VENDOR_CATEGORIES.find(c => c.key === key)
-  return found ? found.label : key
-}
-
-function StarRating({ rating }) {
-  const value = Math.round(rating || 0)
-  return (
-    <View style={{ flexDirection: 'row', marginTop: 4 }}>
-      {[1, 2, 3, 4, 5].map(i => (
-        <Ionicons
-          key={i}
-          name={i <= value ? 'star' : 'star-outline'}
-          size={12}
-          color={colors.warning}
-          style={{ marginRight: 1 }}
-        />
-      ))}
-    </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.vendorName}>{v.name}</Text>
+                    <Text style={styles.vendorSub}>
+                      {v.jobs_completed || 0} jobs done · {v.rating || 4.8} ★
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color={c.textTertiary} />
+                </TouchableOpacity>
+              ))
+            )}
+          </View>
+        ) : null}
+      </ScrollView>
+    </SafeAreaView>
   )
 }
 
 const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: colors.bg },
-  contentContainer: { paddingHorizontal: spacing.xl, paddingBottom: spacing.xxl },
-  headerBlock: { marginBottom: spacing.lg },
-  emergencyBanner: {
-    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
-    backgroundColor: colors.accentSoft, borderRadius: radius.md,
-    padding: spacing.md, marginBottom: spacing.lg,
+  container: {
+    flex: 1,
+    backgroundColor: colors.bg,
   },
-  emergencyIcon: { fontSize: 18 },
-  emergencyText: { flex: 1, fontSize: 14, fontWeight: '700', color: colors.accentPressed },
-  emergencyChevron: { fontSize: 20, color: colors.accentPressed },
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 30,
+  },
+  headerBlock: {
+    marginBottom: 20,
+  },
+  titleText: {
+    fontSize: 32,
+    fontWeight: '800',
+    color: colors.text,
+    letterSpacing: -0.6,
+  },
+  subtitleText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginTop: 4,
+  },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
     backgroundColor: colors.surface,
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    height: 52,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.md,
-    marginBottom: spacing.lg,
+    marginBottom: 24,
+    gap: 10,
   },
-  searchInput: { flex: 1, paddingVertical: spacing.md, fontSize: 14, color: colors.text },
-  catChip: {
+  searchInput: {
+    flex: 1,
+    fontSize: 15,
+    color: colors.text,
+  },
+  categoryGrid: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    flexWrap: 'wrap',
+    gap: 12,
+    marginBottom: 20,
   },
-  catChipActive: { backgroundColor: colors.accent, borderColor: colors.accent },
-  catLabel: { fontSize: 12, fontWeight: '600', color: colors.accent },
-  catLabelActive: { color: colors.text },
-  vendorRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  vendorIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.surfaceMuted,
+  gridCard: {
+    width: '30.5%',
+    aspectRatio: 1,
+    backgroundColor: colors.surface,
+    borderRadius: 20,
+    padding: 12,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
   },
-  vendorName: { fontSize: 15, fontWeight: '700', color: colors.text },
+  gridCardSelected: {
+    borderColor: colors.accent,
+    backgroundColor: colors.surfaceElevated,
+  },
+  gridCardDisabled: {
+    opacity: 0.45,
+  },
+  gridIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: colors.accentSoft,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  gridIconWrapSelected: {
+    backgroundColor: colors.accent,
+  },
+  gridLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.text,
+    textAlign: 'center',
+  },
+  gridLabelSelected: {
+    color: colors.text,
+  },
+  gridLabelDisabled: {
+    color: colors.textTertiary,
+  },
+  unavailableText: {
+    fontSize: 10,
+    color: colors.textTertiary,
+    marginTop: 2,
+  },
+  emergencyBanner: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  emergencyLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  emergencyIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: colors.dangerBg,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emergencyTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  emergencySub: {
+    fontSize: 12,
+    color: colors.textTertiary,
+    marginTop: 2,
+  },
+  sectionTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.textSecondary,
+    letterSpacing: 0.8,
+    marginBottom: 12,
+  },
+  noVendorsText: {
+    fontSize: 14,
+    color: colors.textTertiary,
+  },
+  vendorCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  vendorIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: colors.accentSoft,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  vendorName: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  vendorSub: {
+    fontSize: 12,
+    color: colors.textTertiary,
+    marginTop: 2,
+  },
 })

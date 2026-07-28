@@ -1,69 +1,98 @@
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native'
-import { colors, spacing, radius } from '../lib/theme'
+import { Ionicons } from '@expo/vector-icons'
+import { SafeAreaView } from 'react-native-safe-area-context'
+import { colors } from '../lib/theme'
 
 const MENU_ITEMS = [
-  { key: 'PendingResidents', label: 'Pending Residents', icon: '🛎️' },
-  { key: 'Notices', label: 'Post Notices', icon: '📣' },
-  { key: 'Collections', label: 'Collections', icon: '₹' },
-  { key: 'Tickets', label: 'Tickets', icon: '◎' },
-  { key: 'VendorBookings', label: 'Vendor Bookings', icon: '📋' },
-  { key: 'ManageCommittee', label: 'Manage Committee', icon: '👥' },
+  { key: 'PendingResidents', label: 'Pending Residents', icon: 'person-add-outline' },
+  { key: 'Notices', label: 'Post Notices', icon: 'megaphone-outline' },
+  { key: 'Collections', label: 'Collections', icon: 'wallet-outline' },
+  { key: 'Tickets', label: 'Tickets', icon: 'ticket-outline' },
+  { key: 'VendorBookings', label: 'Vendor Bookings', icon: 'calendar-outline' },
+  { key: 'ManageCommittee', label: 'Manage Committee', icon: 'people-outline' },
 ]
 
 export default function CommitteeMenuScreen({ navigation }) {
   const c = colors
 
   return (
-    <ScrollView style={styles.page} contentContainerStyle={styles.contentContainer}>
-      <View style={[styles.headerCard, { borderColor: c.border }] }>
-        <Text style={styles.sub}>Manage your building in one place.</Text>
-      </View>
+    <SafeAreaView style={styles.container}>
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <View style={styles.headerBlock}>
+          <Text style={styles.titleText}>Committee Management</Text>
+          <Text style={styles.subtitleText}>Manage your building in one place</Text>
+        </View>
 
-      {MENU_ITEMS.map(item => (
-        <TouchableOpacity
-          key={item.key}
-          style={[styles.menuItem, { backgroundColor: c.surface, borderColor: c.border }]}
-          onPress={() => navigation.navigate(item.key)}
-        >
-          <View style={[styles.iconWrap, { backgroundColor: c.accentSoft }] }>
-            <Text style={styles.icon}>{item.icon}</Text>
-          </View>
-          <Text style={[styles.label, { color: c.text }]}>{item.label}</Text>
-          <Text style={[styles.chevron, { color: c.textTertiary }]}>›</Text>
-        </TouchableOpacity>
-      ))}
-    </ScrollView>
+        <View style={styles.menuList}>
+          {MENU_ITEMS.map(item => (
+            <TouchableOpacity
+              key={item.key}
+              style={styles.menuCard}
+              onPress={() => navigation.navigate(item.key)}
+              activeOpacity={0.8}
+            >
+              <View style={styles.iconWrap}>
+                <Ionicons name={item.icon} size={20} color={c.accent} />
+              </View>
+              <Text style={styles.label}>{item.label}</Text>
+              <Ionicons name="chevron-forward" size={18} color={c.textTertiary} />
+            </TouchableOpacity>
+          ))}
+        </View>
+      </ScrollView>
+    </SafeAreaView>
   )
 }
 
 const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: colors.bg },
-  contentContainer: { paddingHorizontal: spacing.xl, paddingTop: spacing.lg, paddingBottom: spacing.xxl },
-  headerCard: {
-    backgroundColor: colors.surfaceElevated,
-    borderWidth: 1,
-    borderRadius: radius.xl,
-    padding: spacing.lg,
-    marginBottom: spacing.lg,
+  container: {
+    flex: 1,
+    backgroundColor: colors.bg,
   },
-  sub: { fontSize: 13, color: colors.textSecondary },
-  menuItem: {
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 30,
+  },
+  headerBlock: {
+    marginBottom: 20,
+  },
+  titleText: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: colors.text,
+    letterSpacing: -0.5,
+  },
+  subtitleText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginTop: 4,
+  },
+  menuList: {
+    gap: 12,
+  },
+  menuCard: {
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderRadius: 20,
+    padding: 16,
     borderWidth: 1,
-    borderRadius: radius.lg,
-    padding: spacing.md,
-    marginBottom: spacing.sm,
+    borderColor: colors.border,
   },
   iconWrap: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    alignItems: 'center',
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: colors.accentSoft,
     justifyContent: 'center',
-    marginRight: spacing.md,
+    alignItems: 'center',
+    marginRight: 14,
   },
-  icon: { fontSize: 18 },
-  label: { flex: 1, fontSize: 15, fontWeight: '600' },
-  chevron: { fontSize: 20, fontWeight: '600' },
+  label: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+  },
 })

@@ -20,22 +20,23 @@ import TicketsScreen from './screens/TicketsScreen'
 import VendorBookingsScreen from './screens/VendorBookingsScreen'
 import ManageCommitteeScreen from './screens/ManageCommitteeScreen'
 import OwnerTenantScreen from './screens/OwnerTenantScreen'
-import { View, Text, ActivityIndicator, StyleSheet } from 'react-native'
+import { View, Text, ActivityIndicator } from 'react-native'
 
 const Tab = createMaterialTopTabNavigator()
 const CommitteeStack = createNativeStackNavigator()
 const ServicesStack = createNativeStackNavigator()
 const HomeStack = createNativeStackNavigator()
+const RequestsStack = createNativeStackNavigator()
 
 function stackScreenOptions() {
   const c = colors
 
   return {
-    headerStyle: { backgroundColor: c.surface },
+    headerStyle: { backgroundColor: c.bg },
     headerTintColor: c.text,
     headerTitleStyle: {
-      fontWeight: '600',
-      fontSize: 17,
+      fontWeight: '700',
+      fontSize: 18,
       letterSpacing: -0.3,
     },
     headerShadowVisible: false,
@@ -44,26 +45,25 @@ function stackScreenOptions() {
 }
 
 function CommitteeStackNavigator() {
-  
   return (
     <CommitteeStack.Navigator screenOptions={stackScreenOptions()}>
-      <CommitteeStack.Screen name="CommitteeMenu" component={CommitteeMenuScreen} options={{ title: 'Manage' }} />
+      <CommitteeStack.Screen name="CommitteeMenu" component={CommitteeMenuScreen} options={{ title: 'Committee Management' }} />
       <CommitteeStack.Screen name="Notices" component={NoticesScreen} options={{ title: 'Notices' }} />
       <CommitteeStack.Screen name="Collections" component={CollectionsScreen} options={{ title: 'Collections' }} />
       <CommitteeStack.Screen name="Tickets" component={TicketsScreen} options={{ title: 'Tickets' }} />
       <CommitteeStack.Screen name="VendorBookings" component={VendorBookingsScreen} options={{ title: 'Bookings' }} />
       <CommitteeStack.Screen name="ManageCommittee" component={ManageCommitteeScreen} options={{ title: 'Members' }} />
-      <CommitteeStack.Screen name="PendingResidents" component={PendingResidentsScreen} options={{ title: 'Pending' }} />
+      <CommitteeStack.Screen name="PendingResidents" component={PendingResidentsScreen} options={{ title: 'Pending Approval' }} />
     </CommitteeStack.Navigator>
   )
 }
 
 function HomeStackNavigator() {
- 
   return (
     <HomeStack.Navigator screenOptions={stackScreenOptions()}>
       <HomeStack.Screen name="HomeMain" component={HomeScreen} options={{ headerShown: false }} />
-      <HomeStack.Screen name="PaymentHistory" component={PaymentHistoryScreen} options={{ title: 'Payment history' }} />
+      <HomeStack.Screen name="PaymentHistory" component={PaymentHistoryScreen} options={{ title: 'Payment History' }} />
+      <HomeStack.Screen name="Notices" component={NoticesScreen} options={{ title: 'Community Notices' }} />
     </HomeStack.Navigator>
   )
 }
@@ -77,20 +77,26 @@ function ServicesStackNavigator() {
         component={VendorDetailScreen}
         options={({ route }) => ({ title: route.params?.vendor?.name || 'Vendor' })}
       />
-      <ServicesStack.Screen name="EmergencyContacts" component={EmergencyContactsScreen} options={{ title: 'Emergency' }} />
+      <ServicesStack.Screen name="EmergencyContacts" component={EmergencyContactsScreen} options={{ title: 'Emergency Contacts' }} />
     </ServicesStack.Navigator>
   )
 }
 
+function RequestsStackNavigator() {
+  return (
+    <RequestsStack.Navigator screenOptions={stackScreenOptions()}>
+      <RequestsStack.Screen name="RequestsMain" component={TicketsScreen} options={{ headerShown: false }} />
+    </RequestsStack.Navigator>
+  )
+}
+
 function TabIcon({ name, color, focused }) {
-  return <Ionicons name={focused ? name.replace('-outline', '') : name} size={24} color={color} />
+  return <Ionicons name={focused ? name.replace('-outline', '') : name} size={22} color={color} />
 }
 
 function MainTabs() {
-  const { isCommittee, profile } = useAuth()
-  
-  const c =colors
-  const showOwnerTenantTab = profile?.ownership === 'owner'
+  const { isCommittee } = useAuth()
+  const c = colors
 
   return (
     <Tab.Navigator
@@ -105,15 +111,16 @@ function MainTabs() {
         tabBarInactiveTintColor: c.tabInactive,
         tabBarStyle: {
           backgroundColor: c.tabBar,
-          borderTopWidth: 0,
+          borderTopWidth: 1,
+          borderTopColor: c.tabBarBorder,
           elevation: 0,
           shadowOpacity: 0,
-          height: 58,
-          paddingBottom: 4,
+          height: 64,
+          paddingBottom: 6,
           paddingTop: 6,
-          paddingHorizontal: 8,
+          paddingHorizontal: 4,
         },
-        tabBarItemStyle: { height: 46, borderRadius: 14 },
+        tabBarItemStyle: { height: 50, borderRadius: 12 },
         tabBarLabelStyle: { fontSize: 10, fontWeight: '600', textTransform: 'none', letterSpacing: -0.1, marginTop: 2 },
         tabBarPressColor: 'transparent',
       }}
@@ -122,6 +129,7 @@ function MainTabs() {
         name="Home"
         component={HomeStackNavigator}
         options={{
+          tabBarLabel: 'Home',
           tabBarIcon: ({ color, focused }) => <TabIcon name="home-outline" color={color} focused={focused} />,
         }}
       />
@@ -129,46 +137,53 @@ function MainTabs() {
         name="Services"
         component={ServicesStackNavigator}
         options={{
-          tabBarIcon: ({ color, focused }) => <TabIcon name="grid-outline" color={color} focused={focused} />,
+          tabBarLabel: 'Services',
+          tabBarIcon: ({ color, focused }) => <TabIcon name="cube-outline" color={color} focused={focused} />,
         }}
       />
-      {isCommittee && (
-        <Tab.Screen
-          name="Committee"
-          component={CommitteeStackNavigator}
-          options={{
-            tabBarIcon: ({ color, focused }) => <TabIcon name="people-outline" color={color} focused={focused} />,
-          }}
-        />
-      )}
-      {showOwnerTenantTab && (
-        <Tab.Screen
-          name="OwnerTenant"
-          component={OwnerTenantScreen}
-          options={{
-            tabBarLabel: 'Maintenance',
-            tabBarIcon: ({ color, focused }) => <TabIcon name="business-outline" color={color} focused={focused} />,
-          }}
-        />
-      )}
+      <Tab.Screen
+        name="Committee"
+        component={CommitteeStackNavigator}
+        options={{
+          tabBarLabel: 'Committee',
+          tabBarItemStyle: isCommittee
+            ? { height: 50, borderRadius: 12 }
+            : { display: 'none', width: 0, height: 0 },
+          tabBarIcon: ({ color, focused }) => <TabIcon name="people-outline" color={color} focused={focused} />,
+        }}
+      />
+      <Tab.Screen
+        name="Requests"
+        component={RequestsStackNavigator}
+        options={{
+          tabBarLabel: 'Requests',
+          tabBarIcon: ({ color, focused }) => <TabIcon name="document-text-outline" color={color} focused={focused} />,
+        }}
+      />
+      <Tab.Screen
+        name="Profile"
+        component={OwnerTenantScreen}
+        options={{
+          tabBarLabel: 'Profile',
+          tabBarIcon: ({ color, focused }) => <TabIcon name="person-outline" color={color} focused={focused} />,
+        }}
+      />
     </Tab.Navigator>
   )
 }
 
 function LoadingView({ message = 'Loading…' }) {
- 
   const c = colors
   return (
     <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: c.bg }}>
       <ActivityIndicator color={c.accent} size="large" />
-      <Text style={{ marginTop: 14, color: c.textSecondary, fontSize: 15 }}>{message}</Text>
+      <Text style={{ marginTop: 14, color: c.textSecondary, fontSize: 15, fontWeight: '500' }}>{message}</Text>
     </View>
   )
 }
 
 function Root() {
   const { session, profile, loading } = useAuth()
-
 
   const navTheme = {
     ...DarkTheme,
@@ -195,11 +210,10 @@ function Root() {
     )
   }
 
-  // Google users receive a valid Supabase session before their resident
-  // profile is complete. Reuse the existing onboarding wizard for them.
   if (!profile) {
-    const isGoogleUser = session.user.app_metadata?.provider === 'google'
-      || session.user.identities?.some(identity => identity.provider === 'google')
+    const isGoogleUser =
+      session.user.app_metadata?.provider === 'google' ||
+      session.user.identities?.some(identity => identity.provider === 'google')
     return isGoogleUser ? <LoginScreen onboardingUser={session.user} /> : <LoadingView />
   }
 
@@ -226,10 +240,8 @@ function Root() {
 
 export default function App() {
   return (
-    
-      <AuthProvider>
-        <Root />
-      </AuthProvider>
-  
+    <AuthProvider>
+      <Root />
+    </AuthProvider>
   )
 }
