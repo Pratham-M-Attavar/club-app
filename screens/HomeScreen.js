@@ -48,7 +48,7 @@ export default function HomeScreen({ navigation }) {
 
     const firstOfMonth = new Date()
     firstOfMonth.setDate(1)
-    const monthStr = firstOfMonth.toISOString().slice(0, 10)
+    const monthStr = getCurrentMonthStr()
 
     if (profile.building_id) {
       supabase
@@ -81,16 +81,17 @@ export default function HomeScreen({ navigation }) {
     }
 
     setDuesLoading(true)
-    supabase
-      .from('dues')
-      .select('*')
-      .eq('flat_number', profile.flat_number)
-      .eq('month', monthStr)
-      .maybeSingle()
-      .then(({ data }) => {
-        setCurrentDue(data)
-        setDuesLoading(false)
-      })
+supabase
+  .from('dues')
+  .select('*')
+  .eq('flat_number', profile.flat_number)
+  .eq('month', monthStr)
+  .maybeSingle()
+  .then(function (result) {
+    console.log('DUES QUERY RESULT', JSON.stringify(result))
+    setCurrentDue(result.data)
+    setDuesLoading(false)
+  })
 
     supabase
       .from('tickets')
@@ -123,11 +124,16 @@ export default function HomeScreen({ navigation }) {
     }
     loadOrCreateRent()
   }, [profile, flatInfo, counterpart])
-
+  function getCurrentMonthStr() {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  return `${year}-${month}-01`
+}
   async function loadOrCreateRent() {
     const firstOfMonth = new Date()
     firstOfMonth.setDate(1)
-    const monthStr = firstOfMonth.toISOString().slice(0, 10)
+    const monthStr = getCurrentMonthStr()
 
     const tenantId = profile.ownership === 'tenant' ? profile.id : counterpart?.id
     const ownerId = profile.ownership === 'owner' ? profile.id : counterpart?.id

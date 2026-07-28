@@ -109,38 +109,7 @@ export default function TicketsScreen() {
     }
   }
 
-  const mockTickets = [
-    {
-      id: 'mock-1',
-      title: 'Hallway light flickering ...',
-      category: 'Electrical',
-      date: 'Jul 24, 2026',
-      status: 'in_progress',
-    },
-    {
-      id: 'mock-2',
-      title: 'Elevator door sensor fault',
-      category: 'Mechanical',
-      date: 'Jul 21, 2026',
-      status: 'pending',
-    },
-    {
-      id: 'mock-3',
-      title: 'Gym air conditioning not ...',
-      category: 'HVAC',
-      date: 'Jul 15, 2026',
-      status: 'resolved',
-    },
-    {
-      id: 'mock-4',
-      title: 'Lobby intercom unrespo...',
-      category: 'Security',
-      date: 'Jul 10, 2026',
-      status: 'resolved',
-    },
-  ]
-
-  const displayList = tickets.length > 0 ? tickets : mockTickets
+  const displayList = tickets
 
   return (
     <SafeAreaView style={styles.container}>

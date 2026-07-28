@@ -20,6 +20,7 @@ import TicketsScreen from './screens/TicketsScreen'
 import VendorBookingsScreen from './screens/VendorBookingsScreen'
 import ManageCommitteeScreen from './screens/ManageCommitteeScreen'
 import OwnerTenantScreen from './screens/OwnerTenantScreen'
+import MaintenanceSetupScreen from './screens/MaintenanceSetupScreen'
 import { View, Text, ActivityIndicator } from 'react-native'
 
 const Tab = createMaterialTopTabNavigator()
@@ -54,6 +55,7 @@ function CommitteeStackNavigator() {
       <CommitteeStack.Screen name="VendorBookings" component={VendorBookingsScreen} options={{ title: 'Bookings' }} />
       <CommitteeStack.Screen name="ManageCommittee" component={ManageCommitteeScreen} options={{ title: 'Members' }} />
       <CommitteeStack.Screen name="PendingResidents" component={PendingResidentsScreen} options={{ title: 'Pending Approval' }} />
+      <CommitteeStack.Screen name="MaintenanceSetup" component={MaintenanceSetupScreen} />
     </CommitteeStack.Navigator>
   )
 }

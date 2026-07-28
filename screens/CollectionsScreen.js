@@ -7,8 +7,8 @@ import { useAuth } from '../lib/AuthContext'
 import { colors, spacing, radius, type } from '../lib/theme'
 
 const DEFAULT_MAINTENANCE = 2800
-const DEFAULT_SINKING_FUND = 300
-const DEFAULT_FESTIVAL_FUND = 150
+
+
 
 function currentMonthStr() {
   const d = new Date()
@@ -67,8 +67,6 @@ export default function CollectionsScreen() {
         flat_number,
         month,
         maintenance: DEFAULT_MAINTENANCE,
-        sinking_fund: DEFAULT_SINKING_FUND,
-        festival_fund: DEFAULT_FESTIVAL_FUND,
         status: 'pending',
         building_id: profile.building_id,
       })),
