@@ -8,6 +8,7 @@ import {
   Linking,
   Alert,
   Modal,
+  RefreshControl,
   ActivityIndicator,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
@@ -22,7 +23,7 @@ import { colors } from '../lib/theme'
 export default function HomeScreen({ navigation }) {
   const { profile } = useAuth()
   const c = colors
-
+  const [refreshing, setRefreshing] = useState(false)
   // Dynamic Supabase State
   const [buildingInfo, setBuildingInfo] = useState(null)
   const [flatInfo, setFlatInfo] = useState(null)
@@ -212,6 +213,17 @@ export default function HomeScreen({ navigation }) {
     }
     setUploadingProof(false)
   }
+  async function handleRefresh() {
+  setRefreshing(true)
+  try {
+    loadEverything()
+    if (profile?.flat_id && flatInfo) {
+      await loadOrCreateRent()
+    }
+  } finally {
+    setRefreshing(false)
+  }
+}
 
   const getGreeting = () => {
     const hour = new Date().getHours()
@@ -247,7 +259,14 @@ export default function HomeScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} refreshControl={
+    <RefreshControl
+      refreshing={refreshing}
+      onRefresh={handleRefresh}
+      tintColor={c.accent}
+      colors={[c.accent]}
+    />
+  }>
         {/* Header */}
         <View style={styles.headerRow}>
           <View>
