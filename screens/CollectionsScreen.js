@@ -6,11 +6,10 @@ import * as Sharing from 'expo-sharing'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 import { colors, spacing, radius, shadow } from '../lib/theme'
+import { getCurrentMonthStr } from '../lib/format'
 
 function currentMonthStr() {
-  const date = new Date()
-  date.setDate(1)
-  return date.toISOString().slice(0, 10)
+  return getCurrentMonthStr()
 }
 
 function formatMoney(amount) {
@@ -59,9 +58,24 @@ function CollectionTrend({ points }) {
   const max = Math.max(...points.map(point => point.amount), 1)
 
   return (
-    <View>
-      <View style={styles.trendBars}>
-        {points.map((point, index) => <View key={`${point.label}-${index}`} style={styles.trendBarSlot}><View style={[styles.trendBar, { height: `${Math.max((point.amount / max) * 100, 8)}%` }]} /></View>)}
+    <View style={{ paddingTop: 16 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'flex-end', height: 90, gap: 6, paddingHorizontal: 4 }}>
+        {points.map((point, index) => {
+          const heightPercent = Math.max(14, Math.round((point.amount / max) * 100))
+          return (
+            <View key={index} style={{ flex: 1, alignItems: 'center', height: '100%', justifyContent: 'flex-end' }}>
+              <View
+                style={{
+                  width: '100%',
+                  height: `${heightPercent}%`,
+                  backgroundColor: colors.success,
+                  opacity: index === points.length - 1 ? 1 : 0.65,
+                  borderRadius: 4,
+                }}
+              />
+            </View>
+          )
+        })}
       </View>
       <View style={styles.chartLabels}>
         <Text style={styles.chartLabel}>{points[0].label}</Text>
@@ -70,6 +84,7 @@ function CollectionTrend({ points }) {
     </View>
   )
 }
+
 
 export default function CollectionsScreen() {
   const { profile } = useAuth()
@@ -120,7 +135,7 @@ export default function CollectionsScreen() {
     setGenerating(true)
     setError('')
     const { error: upsertError } = await supabase.from('dues').upsert(
-      rows.map(row => ({ flat_number: row.flat_number, month, maintenance: Number(row.maintenance_amount), status: 'pending', building_id: profile.building_id })),
+      rows.map(row => ({ flat_number: row.flat_number, month, maintenance: Number(row.maintenance_amount), total: Number(row.maintenance_amount), status: 'pending', building_id: profile.building_id })),
       { onConflict: 'flat_number,month', ignoreDuplicates: true }
     )
     if (upsertError) setError(upsertError.message)
@@ -128,14 +143,28 @@ export default function CollectionsScreen() {
     setGenerating(false)
   }
 
-  async function markPaid(due) {
-    await supabase.from('dues').update({ status: 'paid', paid_at: new Date().toISOString(), proof_url: null }).eq('id', due.id)
-    if (due.proof_url) {
-      const { error: storageError } = await supabase.storage.from('payment-proofs').remove([due.proof_url])
-      if (storageError) console.log('Could not delete proof file:', storageError.message)
+  async function markPaid(due, flatNumber, maintenanceAmount) {
+    if (due?.id) {
+      await supabase.from('dues').update({ status: 'paid', paid_at: new Date().toISOString(), proof_url: null }).eq('id', due.id)
+      if (due.proof_url) {
+        const { error: storageError } = await supabase.storage.from('payment-proofs').remove([due.proof_url])
+        if (storageError) console.log('Could not delete proof file:', storageError.message)
+      }
+    } else if (flatNumber) {
+      const amount = Number(maintenanceAmount || 0)
+      await supabase.from('dues').upsert({
+        flat_number: flatNumber,
+        month,
+        maintenance: amount,
+        total: amount,
+        building_id: profile.building_id,
+        status: 'paid',
+        paid_at: new Date().toISOString(),
+      }, { onConflict: 'flat_number,month' })
     }
     loadData()
   }
+
 
   async function viewProof(due) {
     if (!due.proof_url) return
@@ -210,8 +239,9 @@ export default function CollectionsScreen() {
         const statusBackground = paid ? colors.successBg : submitted ? colors.warningBg : colors.dangerBg
         const statusIcon = paid ? 'checkmark-circle' : submitted ? 'time' : 'alert-circle'
         const residentNames = row.residents.map(resident => `${resident.full_name || 'Resident'} (${resident.ownership || 'resident'})`).join(' · ')
-        return <View key={row.id} style={[styles.unitCard, { borderColor: statusColor + '55' }]}><View style={[styles.flatBadge, { backgroundColor: statusBackground }]}><Text style={[styles.flatBadgeText, { color: statusColor }]}>{row.flat_number}</Text></View><View style={styles.unitInfo}><Text style={styles.residentName} numberOfLines={1}>{residentNames || 'Resident not assigned'}</Text><View style={styles.statusMeta}><Ionicons name={statusIcon} size={12} color={statusColor} /><Text style={[styles.unitMeta, { color: statusColor }]}>{statusLabel}</Text></View><Text style={styles.amountMeta}>{formatMoney(row.due?.total ?? row.due?.maintenance ?? row.maintenance_amount)}</Text></View>{row.due && <View style={styles.unitActions}>{paid ? <Ionicons name="checkmark-circle" size={23} color={colors.success} /> : <TouchableOpacity style={[styles.markButton, { backgroundColor: statusBackground }]} onPress={() => markPaid(row.due)}><Text style={[styles.markButtonText, { color: statusColor }]}>{submitted ? 'Approve' : 'Mark paid'}</Text></TouchableOpacity>}{submitted && row.due.proof_url ? <TouchableOpacity onPress={() => viewProof(row.due)} disabled={viewingProofFor === row.due.id}><Text style={styles.proofText}>{viewingProofFor === row.due.id ? 'Opening…' : 'Proof'}</Text></TouchableOpacity> : null}</View>}</View>
+        return <View key={row.id} style={[styles.unitCard, { borderColor: statusColor + '55' }]}><View style={[styles.flatBadge, { backgroundColor: statusBackground }]}><Text style={[styles.flatBadgeText, { color: statusColor }]}>{row.flat_number}</Text></View><View style={styles.unitInfo}><Text style={styles.residentName} numberOfLines={1}>{residentNames || 'Resident not assigned'}</Text><View style={styles.statusMeta}><Ionicons name={statusIcon} size={12} color={statusColor} /><Text style={[styles.unitMeta, { color: statusColor }]}>{statusLabel}</Text></View><Text style={styles.amountMeta}>{formatMoney(row.due?.total ?? row.due?.maintenance ?? row.maintenance_amount)}</Text></View><View style={styles.unitActions}>{paid ? <Ionicons name="checkmark-circle" size={23} color={colors.success} /> : <TouchableOpacity style={[styles.markButton, { backgroundColor: statusBackground }]} onPress={() => markPaid(row.due, row.flat_number, row.maintenance_amount)}><Text style={[styles.markButtonText, { color: statusColor }]}>{submitted ? 'Approve' : 'Mark paid'}</Text></TouchableOpacity>}{submitted && row.due?.proof_url ? <TouchableOpacity onPress={() => viewProof(row.due)} disabled={viewingProofFor === row.due.id}><Text style={styles.proofText}>{viewingProofFor === row.due.id ? 'Opening…' : 'Proof'}</Text></TouchableOpacity> : null}</View></View>
       })}
+
       {!filteredRows.length && <Text style={styles.empty}>No flats match this search or filter.</Text>}
 
       <Modal visible={!!proofModalUrl} transparent animationType="fade" onRequestClose={() => setProofModalUrl(null)}><View style={styles.modalOverlay}><TouchableOpacity style={StyleSheet.absoluteFill} onPress={() => setProofModalUrl(null)} />{proofModalUrl && <Image source={{ uri: proofModalUrl }} style={styles.modalImage} resizeMode="contain" />}<TouchableOpacity style={styles.closeButton} onPress={() => setProofModalUrl(null)}><Text style={styles.closeButtonText}>Close</Text></TouchableOpacity></View></Modal>
@@ -220,5 +250,5 @@ export default function CollectionsScreen() {
 }
 
 const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: colors.bg }, content: { padding: spacing.xl, paddingBottom: spacing.xxxl }, centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg }, loadingText: { color: colors.textSecondary, marginTop: 10 }, header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing.sm, marginBottom: spacing.xl }, title: { color: colors.text, fontSize: 28, fontWeight: '800', letterSpacing: -0.7 }, subtitle: { color: colors.textSecondary, marginTop: 4, fontSize: 13 }, headerIcon: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.successBg, borderWidth: 1, borderColor: 'rgba(16,185,129,0.28)' }, card: { backgroundColor: colors.surface, borderRadius: radius.xl, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border, ...shadow.card }, summaryCard: { flexDirection: 'row', alignItems: 'center', padding: 14, marginBottom: spacing.xl }, ring: { width: 144, height: 144, alignItems: 'center', justifyContent: 'center' }, ringTrack: { width: 116, height: 116, position: 'relative', alignItems: 'center', justifyContent: 'center' }, ringSegment: { position: 'absolute', width: 4, height: 10, borderRadius: 3 }, ringLabel: { alignItems: 'center' }, ringPercent: { fontSize: 27, lineHeight: 31, fontWeight: '800', color: colors.text }, ringSub: { fontSize: 11, color: colors.textTertiary, marginTop: 2 }, summaryInfo: { flex: 1, marginLeft: 3 }, eyebrow: { color: colors.textTertiary, fontSize: 10.5, fontWeight: '700', letterSpacing: 0.7, textTransform: 'uppercase' }, bigAmount: { color: colors.text, fontSize: 23, fontWeight: '800', letterSpacing: -0.5, marginTop: 3 }, expected: { color: colors.textTertiary, fontSize: 11, marginTop: 2, marginBottom: 10 }, statusLine: { flexDirection: 'row', alignItems: 'center', marginTop: 5 }, dot: { width: 6, height: 6, borderRadius: 3, marginRight: 8 }, statusText: { color: colors.textSecondary, fontSize: 12, fontWeight: '600' }, dueText: { color: colors.textTertiary, fontSize: 11, marginTop: 7 }, sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }, sectionTitle: { color: colors.text, fontSize: 15, fontWeight: '700', marginBottom: 10 }, sectionValue: { color: colors.success, fontSize: 11, fontWeight: '700', marginBottom: 10 }, chartCard: { padding: spacing.lg, marginBottom: spacing.xl }, chartAmount: { color: colors.text, fontSize: 27, fontWeight: '800', marginTop: 3, marginBottom: 4, letterSpacing: -0.5 }, trendBars: { height: 112, flexDirection: 'row', alignItems: 'flex-end', gap: 5, paddingHorizontal: 2, paddingTop: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.border }, trendBarSlot: { flex: 1, height: '100%', justifyContent: 'flex-end' }, trendBar: { width: '100%', minWidth: 4, alignSelf: 'center', borderRadius: 4, backgroundColor: colors.success }, chartLabels: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 5, paddingTop: 6 }, chartLabel: { color: colors.textFaint, fontSize: 10 }, chartEmpty: { color: colors.textTertiary, fontSize: 12, paddingVertical: 32, textAlign: 'center' }, actionRow: { flexDirection: 'row', gap: 10, marginBottom: 10 }, generateButton: { flex: 1, minHeight: 46, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, backgroundColor: colors.accent, borderRadius: radius.md }, generateText: { color: colors.text, fontWeight: '700', fontSize: 13 }, exportButton: { width: 46, alignItems: 'center', justifyContent: 'center', borderRadius: radius.md, backgroundColor: colors.surfaceElevated, borderWidth: 1, borderColor: colors.borderStrong }, error: { color: colors.danger, fontSize: 12, marginBottom: 10 }, searchInput: { color: colors.text, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, paddingHorizontal: 13, paddingVertical: 12, fontSize: 13.5, marginTop: 4, marginBottom: 10 }, filterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: spacing.xl }, filter: { paddingVertical: 7, paddingHorizontal: 12, borderRadius: radius.pill, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }, filterActive: { paddingVertical: 7, paddingHorizontal: 12, borderRadius: radius.pill, backgroundColor: colors.accent }, filterText: { color: colors.textSecondary, fontSize: 12, fontWeight: '600' }, filterTextActive: { color: colors.text, fontSize: 12, fontWeight: '700' }, unitCard: { minHeight: 74, flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: radius.lg, marginBottom: 9, backgroundColor: colors.surface, borderWidth: 1 }, flatBadge: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' }, flatBadgeText: { fontSize: 11, fontWeight: '800' }, unitInfo: { flex: 1, marginLeft: 11 }, residentName: { color: colors.text, fontSize: 13, fontWeight: '700' }, statusMeta: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 3 }, unitMeta: { fontSize: 11, fontWeight: '600' }, amountMeta: { color: colors.textTertiary, fontSize: 11, marginTop: 2 }, unitActions: { alignItems: 'flex-end', gap: 4 }, markButton: { paddingVertical: 6, paddingHorizontal: 9, borderRadius: 8 }, markButtonText: { fontSize: 11, fontWeight: '700' }, proofText: { color: colors.accent, fontSize: 11, fontWeight: '700' }, empty: { color: colors.textSecondary, textAlign: 'center', paddingVertical: 24 }, modalOverlay: { flex: 1, backgroundColor: colors.overlay, alignItems: 'center', justifyContent: 'center' }, modalImage: { width: '92%', height: '75%' }, closeButton: { marginTop: 20, backgroundColor: 'rgba(255,255,255,0.15)', paddingVertical: 10, paddingHorizontal: 24, borderRadius: 8 }, closeButtonText: { color: '#fff', fontWeight: '700', fontSize: 14 },
+  page: { flex: 1, backgroundColor: colors.bg }, content: { padding: spacing.xl, paddingBottom: spacing.xxxl }, centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg }, loadingText: { color: colors.textSecondary, marginTop: 10 }, header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing.sm, marginBottom: spacing.xl }, title: { color: colors.text, fontSize: 28, fontWeight: '800', letterSpacing: -0.7 }, subtitle: { color: colors.textSecondary, marginTop: 4, fontSize: 13 }, headerIcon: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.successBg, borderWidth: 1, borderColor: 'rgba(16,185,129,0.28)' }, card: { backgroundColor: colors.surface, borderRadius: radius.xl, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border, ...shadow.card }, summaryCard: { flexDirection: 'row', alignItems: 'center', padding: 14, marginBottom: spacing.xl }, ring: { width: 144, height: 144, alignItems: 'center', justifyContent: 'center' }, ringTrack: { width: 116, height: 116, position: 'relative', alignItems: 'center', justifyContent: 'center' }, ringSegment: { position: 'absolute', width: 4, height: 10, borderRadius: 3 }, ringLabel: { alignItems: 'center' }, ringPercent: { fontSize: 27, lineHeight: 31, fontWeight: '800', color: colors.text }, ringSub: { fontSize: 11, color: colors.textTertiary, marginTop: 2 }, summaryInfo: { flex: 1, marginLeft: 3 }, eyebrow: { color: colors.textTertiary, fontSize: 10.5, fontWeight: '700', letterSpacing: 0.7, textTransform: 'uppercase' }, bigAmount: { color: colors.text, fontSize: 23, fontWeight: '800', letterSpacing: -0.5, marginTop: 3 }, expected: { color: colors.textTertiary, fontSize: 11, marginTop: 2, marginBottom: 10 }, statusLine: { flexDirection: 'row', alignItems: 'center', marginTop: 5 }, dot: { width: 6, height: 6, borderRadius: 3, marginRight: 8 }, statusText: { color: colors.textSecondary, fontSize: 12, fontWeight: '600' }, dueText: { color: colors.textTertiary, fontSize: 11, marginTop: 7 }, sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }, sectionTitle: { color: colors.text, fontSize: 15, fontWeight: '700', marginBottom: 10 }, sectionValue: { color: colors.success, fontSize: 11, fontWeight: '700', marginBottom: 10 }, chartCard: { padding: spacing.lg, marginBottom: spacing.xl }, chartAmount: { color: colors.text, fontSize: 27, fontWeight: '800', marginTop: 3, marginBottom: 4, letterSpacing: -0.5 }, chartLabels: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 5, paddingTop: 6 }, chartLabel: { color: colors.textFaint, fontSize: 10 }, chartEmpty: { color: colors.textTertiary, fontSize: 12, paddingVertical: 32, textAlign: 'center' }, actionRow: { flexDirection: 'row', gap: 10, marginBottom: 10 }, generateButton: { flex: 1, minHeight: 46, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, backgroundColor: colors.accent, borderRadius: radius.md }, generateText: { color: colors.text, fontWeight: '700', fontSize: 13 }, exportButton: { width: 46, alignItems: 'center', justifyContent: 'center', borderRadius: radius.md, backgroundColor: colors.surfaceElevated, borderWidth: 1, borderColor: colors.borderStrong }, error: { color: colors.danger, fontSize: 12, marginBottom: 10 }, searchInput: { color: colors.text, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, paddingHorizontal: 13, paddingVertical: 12, fontSize: 13.5, marginTop: 4, marginBottom: 10 }, filterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: spacing.xl }, filter: { paddingVertical: 7, paddingHorizontal: 12, borderRadius: radius.pill, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }, filterActive: { paddingVertical: 7, paddingHorizontal: 12, borderRadius: radius.pill, backgroundColor: colors.accent }, filterText: { color: colors.textSecondary, fontSize: 12, fontWeight: '600' }, filterTextActive: { color: colors.text, fontSize: 12, fontWeight: '700' }, unitCard: { minHeight: 74, flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: radius.lg, marginBottom: 9, backgroundColor: colors.surface, borderWidth: 1 }, flatBadge: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' }, flatBadgeText: { fontSize: 11, fontWeight: '800' }, unitInfo: { flex: 1, marginLeft: 11 }, residentName: { color: colors.text, fontSize: 13, fontWeight: '700' }, statusMeta: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 3 }, unitMeta: { fontSize: 11, fontWeight: '600' }, amountMeta: { color: colors.textTertiary, fontSize: 11, marginTop: 2 }, unitActions: { alignItems: 'flex-end', gap: 4 }, markButton: { paddingVertical: 6, paddingHorizontal: 9, borderRadius: 8 }, markButtonText: { fontSize: 11, fontWeight: '700' }, proofText: { color: colors.accent, fontSize: 11, fontWeight: '700' }, empty: { color: colors.textSecondary, textAlign: 'center', paddingVertical: 24 }, modalOverlay: { flex: 1, backgroundColor: colors.overlay, alignItems: 'center', justifyContent: 'center' }, modalImage: { width: '92%', height: '75%' }, closeButton: { marginTop: 20, backgroundColor: 'rgba(255,255,255,0.15)', paddingVertical: 10, paddingHorizontal: 24, borderRadius: 8 }, closeButtonText: { color: '#fff', fontWeight: '700', fontSize: 14 },
 })

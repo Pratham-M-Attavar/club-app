@@ -19,8 +19,10 @@ import { useAuth } from '../lib/AuthContext'
 
 import { pickAndUploadProof } from '../lib/paymentProof'
 import { colors } from '../lib/theme'
+import { getCurrentMonthStr } from '../lib/format'
 
 export default function HomeScreen({ navigation }) {
+
   const { profile } = useAuth()
   const c = colors
   const [refreshing, setRefreshing] = useState(false)
@@ -218,7 +220,8 @@ export default function HomeScreen({ navigation }) {
   async function handleUploadProof() {
     setUploadingProof(true)
     try {
-      const path = await pickAndUploadProof(currentDue, profile)
+      const amount = currentDue?.total ?? currentDue?.maintenance ?? flatInfo?.maintenance_amount ?? 0
+      const path = await pickAndUploadProof(currentDue, profile, amount)
       if (path) {
         Alert.alert(
           'Uploaded Successfully',
@@ -233,12 +236,30 @@ export default function HomeScreen({ navigation }) {
   }
 
   async function notifyCommitteeOfPayment() {
-    if (!currentDue) return
     setNotifyingCommittee(true)
+    const monthStr = getCurrentMonthStr()
+    const effectiveFlatNumber = flatInfo?.flat_number || profile?.flat_number
+    if (!effectiveFlatNumber) {
+      Alert.alert('Error', 'Flat number missing from your profile.')
+      setNotifyingCommittee(false)
+      return
+    }
+    const amount = Number(currentDue?.total ?? currentDue?.maintenance ?? flatInfo?.maintenance_amount ?? 0)
+
     const { error } = await supabase
       .from('dues')
-      .update({ status: 'submitted', proof_uploaded_at: new Date().toISOString() })
-      .eq('id', currentDue.id)
+      .upsert(
+        {
+          flat_number: effectiveFlatNumber,
+          month: monthStr,
+          maintenance: amount,
+          total: amount,
+          building_id: profile.building_id,
+          status: 'submitted',
+          proof_uploaded_at: new Date().toISOString(),
+        },
+        { onConflict: 'flat_number,month' }
+      )
 
     setNotifyingCommittee(false)
     if (error) {
@@ -248,6 +269,7 @@ export default function HomeScreen({ navigation }) {
     Alert.alert('Committee Notified', 'Your payment is pending committee approval.')
     loadEverything()
   }
+
   async function handleRefresh() {
   setRefreshing(true)
   try {
@@ -704,7 +726,7 @@ export default function HomeScreen({ navigation }) {
                     </>
                   )}
                 </TouchableOpacity>
-                {currentDue?.status === 'pending' && (
+                {currentDue?.status !== 'paid' && (
                   <TouchableOpacity
                     style={[styles.primaryButton, { marginTop: 12, backgroundColor: c.success }]}
                     onPress={notifyCommitteeOfPayment}
@@ -713,7 +735,9 @@ export default function HomeScreen({ navigation }) {
                     {notifyingCommittee ? (
                       <ActivityIndicator color={c.text} />
                     ) : (
-                      <Text style={styles.primaryButtonText}>I've Paid — Notify Committee</Text>
+                      <Text style={styles.primaryButtonText}>
+                        {currentDue?.status === 'submitted' ? 'Payment Reported · Re-notify Committee' : "I've Paid — Notify Committee"}
+                      </Text>
                     )}
                   </TouchableOpacity>
                 )}
