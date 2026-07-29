@@ -48,7 +48,11 @@ function stackScreenOptions() {
 function CommitteeStackNavigator() {
   return (
     <CommitteeStack.Navigator screenOptions={stackScreenOptions()}>
-      <CommitteeStack.Screen name="CommitteeMenu" component={CommitteeMenuScreen} options={{ title: 'Committee Management' }} />
+      <CommitteeStack.Screen
+        name="CommitteeMenu"
+        component={CommitteeMenuScreen}
+        options={{ headerShown: false }}
+      />
       <CommitteeStack.Screen name="Notices" component={NoticesScreen} options={{ title: 'Notices' }} />
       <CommitteeStack.Screen name="Collections" component={CollectionsScreen} options={{ title: 'Collections' }} />
       <CommitteeStack.Screen name="Tickets" component={TicketsScreen} options={{ title: 'Tickets' }} />

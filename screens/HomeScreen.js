@@ -41,14 +41,34 @@ export default function HomeScreen({ navigation }) {
   const [showNoticesModal, setShowNoticesModal] = useState(false)
 
   const [uploadingProof, setUploadingProof] = useState(false)
+  const [notifyingCommittee, setNotifyingCommittee] = useState(false)
   const [rentPayment, setRentPayment] = useState(null)
 
   function loadEverything() {
     if (!profile) return
 
-    const firstOfMonth = new Date()
-    firstOfMonth.setDate(1)
     const monthStr = getCurrentMonthStr()
+
+    function loadCurrentDue(flatNumber) {
+      if (!flatNumber) {
+        setCurrentDue(null)
+        setDuesLoading(false)
+        return
+      }
+      setDuesLoading(true)
+      supabase
+        .from('dues')
+        .select('*')
+        .eq('building_id', profile.building_id)
+        .eq('flat_number', flatNumber)
+        .eq('month', monthStr)
+        .maybeSingle()
+        .then(({ data, error }) => {
+          if (error) console.log('Could not load maintenance due:', error.message)
+          setCurrentDue(data || null)
+          setDuesLoading(false)
+        })
+    }
 
     if (profile.building_id) {
       supabase
@@ -69,6 +89,9 @@ export default function HomeScreen({ navigation }) {
         .maybeSingle()
         .then(({ data }) => {
           if (data) setFlatInfo(data)
+          // Dues use the canonical number in flats; tenant profiles can have
+          // a missing or stale flat_number.
+          loadCurrentDue(data?.flat_number || profile.flat_number)
         })
 
       supabase
@@ -78,20 +101,9 @@ export default function HomeScreen({ navigation }) {
         .neq('id', profile.id)
         .maybeSingle()
         .then(({ data }) => setCounterpart(data))
+    } else {
+      loadCurrentDue(profile.flat_number)
     }
-
-    setDuesLoading(true)
-supabase
-  .from('dues')
-  .select('*')
-  .eq('flat_number', profile.flat_number)
-  .eq('month', monthStr)
-  .maybeSingle()
-  .then(function (result) {
-    console.log('DUES QUERY RESULT', JSON.stringify(result))
-    setCurrentDue(result.data)
-    setDuesLoading(false)
-  })
 
     supabase
       .from('tickets')
@@ -219,6 +231,23 @@ supabase
     }
     setUploadingProof(false)
   }
+
+  async function notifyCommitteeOfPayment() {
+    if (!currentDue) return
+    setNotifyingCommittee(true)
+    const { error } = await supabase
+      .from('dues')
+      .update({ status: 'submitted', proof_uploaded_at: new Date().toISOString() })
+      .eq('id', currentDue.id)
+
+    setNotifyingCommittee(false)
+    if (error) {
+      Alert.alert('Could Not Notify Committee', error.message)
+      return
+    }
+    Alert.alert('Committee Notified', 'Your payment is pending committee approval.')
+    loadEverything()
+  }
   async function handleRefresh() {
   setRefreshing(true)
   try {
@@ -257,7 +286,7 @@ supabase
   const rentAmountValue = rentPayment?.amount || flatInfo?.rent_amount || currentDue?.total || 0
   const formattedRentAmount = rentAmountValue ? `₹${Number(rentAmountValue).toLocaleString('en-IN')}` : '₹0'
 
-  const maintenanceTotal = currentDue?.total || 0
+  const maintenanceTotal = currentDue?.total ?? currentDue?.maintenance ?? flatInfo?.maintenance_amount ?? 0
   const formattedMaintenanceAmount = maintenanceTotal ? `₹${Number(maintenanceTotal).toLocaleString('en-IN')}` : '₹0'
 
   const openTickets = tickets.filter(t => t && t.status !== 'resolved' && t.status !== 'done')
@@ -315,16 +344,16 @@ supabase
             <View
               style={[
                 styles.dueBadge,
-                currentDue?.status === 'approved' && { backgroundColor: c.successBg },
+                currentDue?.status === 'paid' && { backgroundColor: c.successBg },
               ]}
             >
               <Text
                 style={[
                   styles.dueBadgeText,
-                  currentDue?.status === 'approved' && { color: c.success },
+                  currentDue?.status === 'paid' && { color: c.success },
                 ]}
               >
-                {currentDue?.status === 'approved' ? 'Paid' : 'Due Soon'}
+                {currentDue?.status === 'paid' ? 'Paid' : currentDue?.status === 'submitted' ? 'Under Review' : 'Due Soon'}
               </Text>
             </View>
           </View>
@@ -346,7 +375,7 @@ supabase
 
           <Text style={styles.rentSubtext}>
             {isTenant || viewerOwesMaintenance
-              ? `Due ${currentMonthName} · Tap to pay via GPay / UPI`
+              ? currentDue?.status === 'submitted' ? 'Payment reported · awaiting committee approval' : `Due ${currentMonthName} · Tap to pay via GPay / UPI`
               : `${counterpart?.full_name || 'Tenant'} is responsible this month`}
           </Text>
         </TouchableOpacity>
@@ -403,10 +432,10 @@ supabase
               </View>
               <Text style={styles.colLabel}>Maintenance</Text>
               <Text style={styles.colValueBold}>
-                {currentDue?.status === 'approved' ? 'Paid' : 'Pending'}
+                {currentDue?.status === 'paid' ? 'Paid' : currentDue?.status === 'submitted' ? 'Under Review' : 'Pending'}
               </Text>
               <Text style={styles.colSubtextGreen}>
-                {currentMonthName} {currentDue?.status === 'approved' ? '✓' : ''}
+                {currentMonthName} {currentDue?.status === 'paid' ? '✓' : ''}
               </Text>
             </TouchableOpacity>
           )}
@@ -604,7 +633,7 @@ supabase
             <View
               style={[
                 styles.paidStatusCard,
-                currentDue?.status !== 'approved' && {
+                currentDue?.status !== 'paid' && {
                   backgroundColor: c.warningBg,
                   borderColor: 'rgba(245,158,11,0.3)',
                 },
@@ -612,25 +641,27 @@ supabase
             >
               <Ionicons
                 name={
-                  currentDue?.status === 'approved'
+                  currentDue?.status === 'paid'
                     ? 'checkmark-circle-outline'
                     : 'time-outline'
                 }
                 size={24}
-                color={currentDue?.status === 'approved' ? c.success : c.warning}
+                color={currentDue?.status === 'paid' ? c.success : c.warning}
               />
               <View>
                 <Text
                   style={[
                     styles.paidStatusTitle,
-                    currentDue?.status !== 'approved' && { color: c.warning },
+                    currentDue?.status !== 'paid' && { color: c.warning },
                   ]}
                 >
                   {currentMonthName} Maintenance — {formattedMaintenanceAmount}
                 </Text>
                 <Text style={styles.paidStatusSub}>
-                  {currentDue?.status === 'approved'
+                  {currentDue?.status === 'paid'
                     ? 'Approved by committee'
+                    : currentDue?.status === 'submitted'
+                    ? 'Payment reported · awaiting committee approval'
                     : 'Payment pending for current month'}
                 </Text>
               </View>
@@ -673,6 +704,19 @@ supabase
                     </>
                   )}
                 </TouchableOpacity>
+                {currentDue?.status === 'pending' && (
+                  <TouchableOpacity
+                    style={[styles.primaryButton, { marginTop: 12, backgroundColor: c.success }]}
+                    onPress={notifyCommitteeOfPayment}
+                    disabled={notifyingCommittee}
+                  >
+                    {notifyingCommittee ? (
+                      <ActivityIndicator color={c.text} />
+                    ) : (
+                      <Text style={styles.primaryButtonText}>I've Paid — Notify Committee</Text>
+                    )}
+                  </TouchableOpacity>
+                )}
               </>
             ) : (
               <Text style={{ fontSize: 13, color: c.textSecondary, textAlign: 'center', marginTop: 4 }}>
