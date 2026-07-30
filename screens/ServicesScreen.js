@@ -53,12 +53,9 @@ export default function ServicesScreen({ navigation }) {
     { key: 'cleaning', label: 'Cleaning', icon: 'sparkles-outline' },
     { key: 'electrical', label: 'Electrical', icon: 'flash-outline' },
     { key: 'plumbing', label: 'Plumbing', icon: 'water-outline' },
-    { key: 'parking', label: 'Parking', icon: 'car-outline' },
-    { key: 'courier', label: 'Courier', icon: 'cube-outline' },
-    { key: 'internet', label: 'Internet', icon: 'wifi-outline', unavailable: true },
+    { key: 'Scrap', label: 'Scrap', icon: 'cube-outline' },
     { key: 'security', label: 'Security', icon: 'shield-checkmark-outline' },
     { key: 'housekeeping', label: 'Housekeeping', icon: 'home-outline' },
-    { key: 'moving', label: 'Moving', icon: 'navigate-outline' },
   ]
 
   return (
