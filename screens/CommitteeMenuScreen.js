@@ -8,10 +8,10 @@ const MENU_ITEMS = [
   { key: 'Notices', label: 'Post Notices', icon: 'megaphone-outline' },
   { key: 'Collections', label: 'Collections', icon: 'wallet-outline' },
   { key: 'MaintenanceSetup', label: 'Maintenance Setup', icon: 'construct-outline' },
-  { key: 'Tickets', label: 'Tickets', icon: 'ticket-outline' },
   { key: 'VendorBookings', label: 'Vendor Bookings', icon: 'calendar-outline' },
   { key: 'ManageCommittee', label: 'Manage Committee', icon: 'people-outline' },
 ]
+
 
 export default function CommitteeMenuScreen({ navigation }) {
   const c = colors

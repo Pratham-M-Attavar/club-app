@@ -9,12 +9,22 @@ import {
   TextInput,
   Alert,
   ActivityIndicator,
+  Modal,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useAuth } from '../lib/AuthContext'
 import { colors } from '../lib/theme'
 import { supabase } from '../lib/supabase'
+
+const DAYS = Array.from({ length: 31 }, (_, i) => i + 1)
+
+function ordinal(day) {
+  if (!day) return ''
+  const s = ['th', 'st', 'nd', 'rd']
+  const v = day % 100
+  return day + (s[(v - 20) % 10] || s[v] || s[0])
+}
 
 export default function OwnerTenantScreen() {
   const { profile, signOut } = useAuth()
@@ -32,6 +42,8 @@ export default function OwnerTenantScreen() {
   const [rentAmount, setRentAmount] = useState('')
   const [ownerUpiId, setOwnerUpiId] = useState('')
   const [maintenancePayer, setMaintenancePayer] = useState('owner') // 'owner' | 'tenant'
+  const [rentDueDay, setRentDueDay] = useState(null)
+  const [showDayPicker, setShowDayPicker] = useState(false)
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
@@ -49,7 +61,7 @@ export default function OwnerTenantScreen() {
         })
     }
 
-    // Fetch flat configuration (Rent, Owner UPI, Maintenance Payer)
+    // Fetch flat configuration (Rent, Owner UPI, Maintenance Payer, Rent Due Day)
     if (profile.flat_id) {
       supabase
         .from('flats')
@@ -62,6 +74,7 @@ export default function OwnerTenantScreen() {
             setRentAmount(data.rent_amount ? String(data.rent_amount) : '')
             setOwnerUpiId(data.owner_upi_id || '')
             setMaintenancePayer(data.maintenance_payer || 'owner')
+            setRentDueDay(data.rent_due_day || null)
           }
         })
     }
@@ -86,6 +99,7 @@ export default function OwnerTenantScreen() {
         rent_amount: numericRent || null,
         owner_upi_id: ownerUpiId.trim() || null,
         maintenance_payer: maintenancePayer,
+        rent_due_day: rentDueDay,
       })
       .eq('id', flatInfo.id)
 
@@ -145,7 +159,8 @@ export default function OwnerTenantScreen() {
             <Text style={styles.sectionHeader}>OWNER RENT & MAINTENANCE SETUP</Text>
             <View style={styles.groupedCard}>
               <Text style={styles.setupSubtext}>
-                Set the monthly rent amount, your receiving UPI ID, and choose who pays monthly maintenance.
+                Set the monthly rent amount, your receiving UPI ID, the day rent is due, and choose
+                who pays monthly maintenance.
               </Text>
 
               <Text style={styles.inputLabel}>MONTHLY RENT AMOUNT (₹)</Text>
@@ -167,6 +182,15 @@ export default function OwnerTenantScreen() {
                 value={ownerUpiId}
                 onChangeText={setOwnerUpiId}
               />
+
+              <Text style={styles.inputLabel}>RENT DUE DAY (EVERY MONTH)</Text>
+              <TouchableOpacity style={styles.dayPickerButton} onPress={() => setShowDayPicker(true)}>
+                <Ionicons name="calendar-outline" size={16} color={c.textSecondary} />
+                <Text style={styles.dayPickerButtonText}>
+                  {rentDueDay ? `${ordinal(rentDueDay)} of every month` : 'Not set'}
+                </Text>
+                <Ionicons name="chevron-down" size={16} color={c.textTertiary} />
+              </TouchableOpacity>
 
               <Text style={styles.inputLabel}>WHO PAYS MONTHLY MAINTENANCE?</Text>
               <View style={styles.payerToggleRow}>
@@ -332,6 +356,43 @@ export default function OwnerTenantScreen() {
           <Text style={styles.signOutButtonText}>Sign Out</Text>
         </TouchableOpacity>
       </ScrollView>
+
+      {/* Rent Due Day Picker Modal */}
+      <Modal visible={showDayPicker} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity style={styles.modalBackdrop} onPress={() => setShowDayPicker(false)} />
+          <View style={styles.modalSheet}>
+            <View style={styles.sheetHandle} />
+            <View style={styles.sheetHeader}>
+              <Text style={styles.sheetTitle}>Rent Due Day</Text>
+              <TouchableOpacity onPress={() => setShowDayPicker(false)} style={styles.closeBtn}>
+                <Ionicons name="close" size={18} color={c.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.pickerHint}>Rent will be shown as due on this day every month.</Text>
+
+            <ScrollView style={styles.dayScrollList} showsVerticalScrollIndicator={false}>
+              <View style={styles.dayGrid}>
+                {DAYS.map(day => (
+                  <TouchableOpacity
+                    key={day}
+                    style={[styles.dayCell, rentDueDay === day && styles.dayCellSelected]}
+                    onPress={() => {
+                      setRentDueDay(day)
+                      setShowDayPicker(false)
+                    }}
+                  >
+                    <Text style={[styles.dayCellText, rentDueDay === day && styles.dayCellTextSelected]}>
+                      {day}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   )
 }
@@ -441,6 +502,24 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     marginBottom: 8,
   },
+  dayPickerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: colors.bg,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    height: 48,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: 8,
+  },
+  dayPickerButtonText: {
+    flex: 1,
+    fontSize: 14,
+    color: colors.text,
+    fontWeight: '500',
+  },
   payerToggleRow: {
     flexDirection: 'row',
     gap: 10,
@@ -524,5 +603,85 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     color: colors.danger,
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: colors.overlay,
+  },
+  modalBackdrop: {
+    flex: 1,
+  },
+  modalSheet: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: colors.border,
+    maxHeight: '70%',
+  },
+  sheetHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.borderStrong,
+    alignSelf: 'center',
+    marginBottom: 16,
+  },
+  sheetHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  sheetTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  closeBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.surfaceElevated,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  pickerHint: {
+    fontSize: 12.5,
+    color: colors.textTertiary,
+    marginBottom: 16,
+  },
+  dayScrollList: {
+    maxHeight: 320,
+  },
+  dayGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    paddingBottom: 10,
+  },
+  dayCell: {
+    width: '17%',
+    aspectRatio: 1,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.bg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dayCellSelected: {
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
+  },
+  dayCellText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  dayCellTextSelected: {
+    color: colors.text,
   },
 })

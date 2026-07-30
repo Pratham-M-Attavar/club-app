@@ -396,10 +396,12 @@ export default function HomeScreen({ navigation }) {
           </Text>
 
           <Text style={styles.rentSubtext}>
-            {isTenant || viewerOwesMaintenance
-              ? currentDue?.status === 'submitted' ? 'Payment reported · awaiting committee approval' : `Due ${currentMonthName} · Tap to pay via GPay / UPI`
-              : `${counterpart?.full_name || 'Tenant'} is responsible this month`}
-          </Text>
+  {isTenant
+    ? `Due ${flatInfo?.rent_due_day ? `on the ${flatInfo.rent_due_day}${flatInfo.rent_due_day === 1 || flatInfo.rent_due_day === 21 || flatInfo.rent_due_day === 31 ? 'st' : flatInfo.rent_due_day === 2 || flatInfo.rent_due_day === 22 ? 'nd' : flatInfo.rent_due_day === 3 || flatInfo.rent_due_day === 23 ? 'rd' : 'th'}` : currentMonthName} · Tap to pay via GPay / UPI`
+    : viewerOwesMaintenance
+    ? `Due ${currentMonthName} · Tap to pay via GPay / UPI`
+    : `${counterpart?.full_name || 'Tenant'} is responsible this month`}
+</Text>
         </TouchableOpacity>
 
         {/* 2-Column Dynamic Row */}
@@ -565,6 +567,12 @@ export default function HomeScreen({ navigation }) {
                   {flatInfo?.owner_upi_id || buildingInfo?.upi_id || 'Not set'}
                 </Text>
               </View>
+              <View style={styles.kvRow}>
+    <Text style={styles.kvKey}>Due Day</Text>
+    <Text style={styles.kvVal}>
+      {flatInfo?.rent_due_day ? `${flatInfo.rent_due_day}th of every month` : 'Not set'}
+    </Text>
+  </View>
               <View style={styles.kvRow}>
                 <Text style={styles.kvKey}>Status</Text>
                 <Text
