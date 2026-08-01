@@ -30,7 +30,7 @@ export default function HomeScreen({ navigation }) {
   const [buildingInfo, setBuildingInfo] = useState(null)
   const [flatInfo, setFlatInfo] = useState(null)
   const [counterpart, setCounterpart] = useState(null)
-  const [notifyingOwner, setNotifyingOwner] = useState(false)
+
   const [currentDue, setCurrentDue] = useState(null)
   const [duesLoading, setDuesLoading] = useState(true)
 
@@ -45,6 +45,7 @@ export default function HomeScreen({ navigation }) {
   const [uploadingProof, setUploadingProof] = useState(false)
   const [notifyingCommittee, setNotifyingCommittee] = useState(false)
   const [rentPayment, setRentPayment] = useState(null)
+  const [sendingRentReminder, setSendingRentReminder] = useState(false)
 
   function loadEverything() {
     if (!profile) return
@@ -98,7 +99,7 @@ export default function HomeScreen({ navigation }) {
 
       supabase
         .from('profiles')
-        .select('id, full_name, ownership')
+        .select('id, full_name, ownership, push_token')
         .eq('flat_id', profile.flat_id)
         .neq('id', profile.id)
         .maybeSingle()
@@ -139,11 +140,11 @@ export default function HomeScreen({ navigation }) {
     loadOrCreateRent()
   }, [profile, flatInfo, counterpart])
   function getCurrentMonthStr() {
-    const now = new Date()
-    const year = now.getFullYear()
-    const month = String(now.getMonth() + 1).padStart(2, '0')
-    return `${year}-${month}-01`
-  }
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  return `${year}-${month}-01`
+}
   async function loadOrCreateRent() {
     const firstOfMonth = new Date()
     firstOfMonth.setDate(1)
@@ -269,33 +270,46 @@ export default function HomeScreen({ navigation }) {
     Alert.alert('Committee Notified', 'Your payment is pending committee approval.')
     loadEverything()
   }
-  async function notifyOwnerOfRentPayment() {
-    setNotifyingOwner(true)
-    const { error } = await supabase
-      .from('rent_payments')
-      .update({ status: 'submitted' })
-      .eq('flat_id', profile.flat_id)
-      .eq('month', getCurrentMonthStr())
 
-    setNotifyingOwner(false)
-    if (error) {
-      Alert.alert('Could Not Notify Owner', error.message)
+  async function remindTenantRent() {
+    if (!counterpart?.push_token) {
+      Alert.alert('No Reminder Sent', `${counterpart?.full_name || 'Your tenant'} hasn't enabled notifications yet.`)
       return
     }
-    Alert.alert('Owner Notified', 'Your rent payment is pending owner confirmation.')
-    loadOrCreateRent()
-  }
-  async function handleRefresh() {
-    setRefreshing(true)
+    setSendingRentReminder(true)
     try {
-      loadEverything()
-      if (profile?.flat_id && flatInfo) {
-        await loadOrCreateRent()
+      const res = await fetch('https://eebzdurarsyuqbdtwswl.supabase.co/functions/v1/send-push', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tokens: [counterpart.push_token],
+          title: 'Rent Reminder',
+          body: `Your rent for ${currentMonthName} is still pending — please pay when you get a chance.`,
+        }),
+      })
+      const result = await res.json()
+      if (result.sent > 0) {
+        Alert.alert('Reminder Sent', `${counterpart?.full_name || 'Your tenant'} has been notified.`)
+      } else {
+        Alert.alert('Could Not Send', 'The reminder could not be delivered.')
       }
-    } finally {
-      setRefreshing(false)
+    } catch (err) {
+      Alert.alert('Could Not Send Reminder', err.message)
     }
+    setSendingRentReminder(false)
   }
+
+  async function handleRefresh() {
+  setRefreshing(true)
+  try {
+    loadEverything()
+    if (profile?.flat_id && flatInfo) {
+      await loadOrCreateRent()
+    }
+  } finally {
+    setRefreshing(false)
+  }
+}
 
   const getGreeting = () => {
     const hour = new Date().getHours()
@@ -332,13 +346,13 @@ export default function HomeScreen({ navigation }) {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} refreshControl={
-        <RefreshControl
-          refreshing={refreshing}
-          onRefresh={handleRefresh}
-          tintColor={c.accent}
-          colors={[c.accent]}
-        />
-      }>
+    <RefreshControl
+      refreshing={refreshing}
+      onRefresh={handleRefresh}
+      tintColor={c.accent}
+      colors={[c.accent]}
+    />
+  }>
         {/* Header */}
         <View style={styles.headerRow}>
           <View>
@@ -399,24 +413,24 @@ export default function HomeScreen({ navigation }) {
             {isTenant
               ? 'Monthly Rent'
               : viewerOwesMaintenance
-                ? 'Maintenance Fee'
-                : 'Maintenance (Tenant Pays)'}
+              ? 'Maintenance Fee'
+              : 'Maintenance (Tenant Pays)'}
           </Text>
           <Text style={styles.rentAmount}>
             {isTenant
               ? formattedRentAmount
               : viewerOwesMaintenance
-                ? formattedMaintenanceAmount
-                : '—'}
+              ? formattedMaintenanceAmount
+              : '—'}
           </Text>
 
           <Text style={styles.rentSubtext}>
-            {isTenant
-              ? `Due ${flatInfo?.rent_due_day ? `on the ${flatInfo.rent_due_day}${flatInfo.rent_due_day === 1 || flatInfo.rent_due_day === 21 || flatInfo.rent_due_day === 31 ? 'st' : flatInfo.rent_due_day === 2 || flatInfo.rent_due_day === 22 ? 'nd' : flatInfo.rent_due_day === 3 || flatInfo.rent_due_day === 23 ? 'rd' : 'th'}` : currentMonthName} · Tap to pay via GPay / UPI`
-              : viewerOwesMaintenance
-                ? `Due ${currentMonthName} · Tap to pay via GPay / UPI`
-                : `${counterpart?.full_name || 'Tenant'} is responsible this month`}
-          </Text>
+  {isTenant
+    ? `Due ${flatInfo?.rent_due_day ? `on the ${flatInfo.rent_due_day}${flatInfo.rent_due_day === 1 || flatInfo.rent_due_day === 21 || flatInfo.rent_due_day === 31 ? 'st' : flatInfo.rent_due_day === 2 || flatInfo.rent_due_day === 22 ? 'nd' : flatInfo.rent_due_day === 3 || flatInfo.rent_due_day === 23 ? 'rd' : 'th'}` : currentMonthName} · Tap to pay via GPay / UPI`
+    : viewerOwesMaintenance
+    ? `Due ${currentMonthName} · Tap to pay via GPay / UPI`
+    : `${counterpart?.full_name || 'Tenant'} is responsible this month`}
+</Text>
         </TouchableOpacity>
 
         {/* 2-Column Dynamic Row */}
@@ -445,11 +459,7 @@ export default function HomeScreen({ navigation }) {
               </View>
               <Text style={styles.colLabel}>Rent Status</Text>
               <Text style={styles.colValueBold}>
-                {rentPayment?.status === 'paid'
-                  ? 'Received'
-                  : rentPayment?.status === 'submitted'
-                    ? 'Reported'
-                    : 'Pending'}
+                {rentPayment?.status === 'paid' ? 'Received' : 'Pending'}
               </Text>
               <Text
                 style={
@@ -460,9 +470,7 @@ export default function HomeScreen({ navigation }) {
               >
                 {rentPayment?.status === 'paid'
                   ? `${currentMonthName} ✓`
-                  : rentPayment?.status === 'submitted'
-                    ? 'Tenant says paid · confirm'
-                    : 'Awaiting Tenant'}
+                  : 'Awaiting Tenant'}
               </Text>
             </TouchableOpacity>
           ) : (
@@ -589,20 +597,20 @@ export default function HomeScreen({ navigation }) {
                 </Text>
               </View>
               <View style={styles.kvRow}>
-                <Text style={styles.kvKey}>Due Day</Text>
-                <Text style={styles.kvVal}>
-                  {flatInfo?.rent_due_day ? `${flatInfo.rent_due_day}th of every month` : 'Not set'}
-                </Text>
-              </View>
+    <Text style={styles.kvKey}>Due Day</Text>
+    <Text style={styles.kvVal}>
+      {flatInfo?.rent_due_day ? `${flatInfo.rent_due_day}th of every month` : 'Not set'}
+    </Text>
+  </View>
               <View style={styles.kvRow}>
                 <Text style={styles.kvKey}>Status</Text>
                 <Text
                   style={[
                     styles.kvVal,
-                    { color: rentPayment?.status === 'paid' ? c.success : rentPayment?.status === 'submitted' ? c.warning : c.textSecondary },
+                    { color: rentPayment?.status === 'paid' ? c.success : c.warning },
                   ]}
                 >
-                  {rentPayment?.status === 'paid' ? 'Paid' : rentPayment?.status === 'submitted' ? 'Under Review' : 'Unpaid'}
+                  {rentPayment?.status === 'paid' ? 'Paid' : 'Unpaid'}
                 </Text>
               </View>
             </View>
@@ -610,39 +618,21 @@ export default function HomeScreen({ navigation }) {
             {/* Only the tenant pays rent. The owner (payee) sees a
                 read-only status line instead of a pay action. */}
             {isTenant ? (
-              <>
-                <TouchableOpacity
-                  style={styles.primaryButton}
-                  onPress={() => {
-                    setShowRentPayPanel(false)
-                    payViaGPay(
-                      flatInfo?.owner_upi_id || buildingInfo?.upi_id,
-                      counterpart?.full_name || 'Flat Owner',
-                      rentAmountValue,
-                      `Rent - Flat ${flatNumber}`
-                    )
-                  }}
-                >
-                  <Ionicons name="logo-google" size={18} color={c.text} style={{ marginRight: 8 }} />
-                  <Text style={styles.primaryButtonText}>Pay Now with GPay</Text>
-                </TouchableOpacity>
-
-                {rentPayment?.status !== 'paid' && (
-                  <TouchableOpacity
-                    style={[styles.primaryButton, { marginTop: 12, backgroundColor: c.success }]}
-                    onPress={notifyOwnerOfRentPayment}
-                    disabled={notifyingOwner}
-                  >
-                    {notifyingOwner ? (
-                      <ActivityIndicator color={c.text} />
-                    ) : (
-                      <Text style={styles.primaryButtonText}>
-                        {rentPayment?.status === 'submitted' ? 'Payment Reported · Re-notify Owner' : "I've Paid — Notify Owner"}
-                      </Text>
-                    )}
-                  </TouchableOpacity>
-                )}
-              </>
+              <TouchableOpacity
+                style={styles.primaryButton}
+                onPress={() => {
+                  setShowRentPayPanel(false)
+                  payViaGPay(
+                    flatInfo?.owner_upi_id || buildingInfo?.upi_id,
+                    counterpart?.full_name || 'Flat Owner',
+                    rentAmountValue,
+                    `Rent - Flat ${flatNumber}`
+                  )
+                }}
+              >
+                <Ionicons name="logo-google" size={18} color={c.text} style={{ marginRight: 8 }} />
+                <Text style={styles.primaryButtonText}>Pay Now with GPay</Text>
+              </TouchableOpacity>
             ) : (
               <>
                 <View
@@ -666,39 +656,27 @@ export default function HomeScreen({ navigation }) {
                         rentPayment?.status !== 'paid' && { color: c.warning },
                       ]}
                     >
-                      {rentPayment?.status === 'paid'
-                        ? 'Rent Received'
-                        : rentPayment?.status === 'submitted'
-                          ? 'Tenant Reported Payment'
-                          : 'Rent Pending'}
+                      {rentPayment?.status === 'paid' ? 'Rent Received' : 'Rent Pending'}
                     </Text>
                     <Text style={styles.paidStatusSub}>
                       {rentPayment?.status === 'paid'
                         ? `${currentMonthName} ✓`
-                        : rentPayment?.status === 'submitted'
-                          ? `${counterpart?.full_name || 'Tenant'} says they've paid — confirm below`
-                          : `Waiting on ${counterpart?.full_name || 'tenant'} to pay`}
+                        : `Waiting on ${counterpart?.full_name || 'tenant'} to pay`}
                     </Text>
                   </View>
                 </View>
 
-                {rentPayment?.status === 'submitted' && (
+                {rentPayment?.status !== 'paid' && (
                   <TouchableOpacity
                     style={styles.primaryButton}
-                    onPress={async () => {
-                      const { error } = await supabase
-                        .from('rent_payments')
-                        .update({ status: 'paid' })
-                        .eq('flat_id', profile.flat_id)
-                        .eq('month', getCurrentMonthStr())
-                      if (error) {
-                        Alert.alert('Could Not Confirm', error.message)
-                        return
-                      }
-                      loadOrCreateRent()
-                    }}
+                    onPress={remindTenantRent}
+                    disabled={sendingRentReminder}
                   >
-                    <Text style={styles.primaryButtonText}>Confirm Rent Received</Text>
+                    {sendingRentReminder ? (
+                      <ActivityIndicator color={c.text} />
+                    ) : (
+                      <Text style={styles.primaryButtonText}>Remind Tenant</Text>
+                    )}
                   </TouchableOpacity>
                 )}
               </>
@@ -758,8 +736,8 @@ export default function HomeScreen({ navigation }) {
                   {currentDue?.status === 'paid'
                     ? 'Approved by committee'
                     : currentDue?.status === 'submitted'
-                      ? 'Payment reported · awaiting committee approval'
-                      : 'Payment pending for current month'}
+                    ? 'Payment reported · awaiting committee approval'
+                    : 'Payment pending for current month'}
                 </Text>
               </View>
             </View>
@@ -881,7 +859,7 @@ export default function HomeScreen({ navigation }) {
           </View>
         </View>
       </Modal>
-    </SafeAreaView >
+    </SafeAreaView>
   )
 }
 
