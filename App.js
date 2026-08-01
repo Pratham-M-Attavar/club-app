@@ -22,6 +22,7 @@ import ManageCommitteeScreen from './screens/ManageCommitteeScreen'
 import OwnerTenantScreen from './screens/OwnerTenantScreen'
 import MaintenanceSetupScreen from './screens/MaintenanceSetupScreen'
 import { View, Text, ActivityIndicator } from 'react-native'
+import ServiceContactScreen from './screens/ServiceContactScreen'
 
 const Tab = createMaterialTopTabNavigator()
 const CommitteeStack = createNativeStackNavigator()
@@ -83,6 +84,7 @@ function ServicesStackNavigator() {
         options={({ route }) => ({ title: route.params?.vendor?.name || 'Vendor' })}
       />
       <ServicesStack.Screen name="EmergencyContacts" component={EmergencyContactsScreen} options={{ title: 'Emergency Contacts' }} />
+      <ServicesStack.Screen name="ServiceContact" component={ServiceContactScreen} options={{ headerShown: false }} />
     </ServicesStack.Navigator>
   )
 }

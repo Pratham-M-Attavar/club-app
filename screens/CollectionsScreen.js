@@ -250,6 +250,7 @@ export default function CollectionsScreen() {
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [exporting, setExporting] = useState(false)
+  const [sendingReminders, setSendingReminders] = useState(false)
   const month = currentMonthStr()
 
   async function loadData() {
@@ -262,15 +263,15 @@ export default function CollectionsScreen() {
     ])
     const flatIds = (flatsResult.data || []).map(flat => flat.id)
     const residentsResult = flatIds.length
-      ? await supabase.from('profiles').select('flat_id, full_name, ownership').in('flat_id', flatIds)
+      ? await supabase.from('profiles').select('flat_id, full_name, ownership, id, push_token').in('flat_id', flatIds)
       : { data: [] }
     const duesByFlat = new Map((duesResult.data || []).map(due => [due.flat_number, due]))
     const residentsByFlat = new Map()
-    ;(residentsResult.data || []).forEach(resident => {
-      const residents = residentsByFlat.get(resident.flat_id) || []
-      residents.push(resident)
-      residentsByFlat.set(resident.flat_id, residents)
-    })
+      ; (residentsResult.data || []).forEach(resident => {
+        const residents = residentsByFlat.get(resident.flat_id) || []
+        residents.push(resident)
+        residentsByFlat.set(resident.flat_id, residents)
+      })
     setRows((flatsResult.data || []).map(flat => ({ ...flat, residents: residentsByFlat.get(flat.id) || [], due: duesByFlat.get(flat.flat_number) || null })))
     setBuildingName(buildingResult.data?.name || 'Your building')
     setLoading(false)
@@ -293,6 +294,39 @@ export default function CollectionsScreen() {
     if (upsertError) setError(upsertError.message)
     await loadData()
     setGenerating(false)
+  }
+
+  async function sendOverdueReminders() {
+    const overdueRows = rows.filter(row => row.due?.status === 'pending')
+
+    if (!overdueRows.length) {
+      Alert.alert('No Overdue Dues', 'No pending maintenance dues right now.')
+      return
+    }
+
+    const tokens = overdueRows.flatMap(row => row.residents.map(r => r.push_token).filter(Boolean))
+    if (!tokens.length) {
+      Alert.alert('No Reminders Sent', 'None of the overdue residents have notifications enabled yet.')
+      return
+    }
+
+    setSendingReminders(true)
+    try {
+      const res = await fetch('https://eebzdurarsyuqbdtwswl.supabase.co/functions/v1/send-push', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tokens,
+          title: 'Maintenance Payment Reminder',
+          body: `Your maintenance for ${monthLabel(month)} is still pending — please pay at your earliest convenience.`,
+        }),
+      })
+      const result = await res.json()
+      Alert.alert('Reminders Sent', `Sent to ${result.sent || 0} device(s) across ${overdueRows.length} overdue flat(s).`)
+    } catch (err) {
+      Alert.alert('Could Not Send Reminders', err.message)
+    }
+    setSendingReminders(false)
   }
 
   async function markPaid(due, flatNumber, maintenanceAmount) {
@@ -422,6 +456,13 @@ export default function CollectionsScreen() {
           <Ionicons name="download-outline" size={18} color={colors.text} />
         </TouchableOpacity>
       </View>
+
+      <View style={styles.actionRow}>
+        <TouchableOpacity style={styles.generateButton} onPress={sendOverdueReminders} disabled={sendingReminders}>
+          <Ionicons name="notifications-outline" size={17} color={colors.text} />
+          <Text style={styles.generateText}>{sendingReminders ? 'Sending…' : 'Remind unpaid residents'}</Text>
+        </TouchableOpacity>
+      </View>
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
       <TextInput style={styles.searchInput} placeholder="Search flat or resident…" placeholderTextColor={colors.textFaint} value={searchQuery} onChangeText={setSearchQuery} />
@@ -437,8 +478,8 @@ export default function CollectionsScreen() {
         const bottomText = paid
           ? (row.due?.paid_at ? `Paid at ${new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short' }).format(new Date(row.due.paid_at))}` : 'Paid')
           : submitted
-          ? 'Awaiting approval'
-          : 'Awaiting payment'
+            ? 'Awaiting approval'
+            : 'Awaiting payment'
 
         return <View key={row.id} style={styles.unitCard}><View style={[styles.flatBadge, { backgroundColor: statusBackground }]}><Text style={[styles.flatBadgeText, { color: statusColor }]}>{row.flat_number}</Text></View><View style={styles.unitInfo}><Text style={styles.residentName} numberOfLines={1}>{residentNames || 'Resident not assigned'}</Text><Text style={[styles.amountMeta, { color: paid ? colors.success : submitted ? colors.warning : colors.textTertiary }]}>{bottomText}</Text></View><View style={styles.unitActions}>{paid ? <Ionicons name="checkmark-circle" size={26} color={colors.success} /> : <TouchableOpacity style={[styles.markButton, { backgroundColor: statusBackground }]} onPress={() => markPaid(row.due, row.flat_number, row.maintenance_amount)}><Text style={[styles.markButtonText, { color: statusColor }]}>{submitted ? 'Approve' : 'Mark paid'}</Text></TouchableOpacity>}{submitted && row.due?.proof_url ? <TouchableOpacity onPress={() => viewProof(row.due)} disabled={viewingProofFor === row.due.id}><Text style={styles.proofText}>{viewingProofFor === row.due.id ? 'Opening…' : 'Proof'}</Text></TouchableOpacity> : null}</View></View>
       })}
@@ -509,4 +550,3 @@ const styles = StyleSheet.create({
   closeButton: { marginTop: 20, backgroundColor: 'rgba(255,255,255,0.15)', paddingVertical: 10, paddingHorizontal: 24, borderRadius: 8 },
   closeButtonText: { color: '#fff', fontWeight: '700', fontSize: 14 },
 })
-

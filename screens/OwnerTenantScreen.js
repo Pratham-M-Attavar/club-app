@@ -10,6 +10,7 @@ import {
   Alert,
   ActivityIndicator,
   Modal,
+  Linking,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -18,6 +19,9 @@ import { colors } from '../lib/theme'
 import { supabase } from '../lib/supabase'
 
 const DAYS = Array.from({ length: 31 }, (_, i) => i + 1)
+
+// Replace with your real number — country code + number, no spaces or dashes
+const SUPPORT_PHONE_NUMBER = '919999999999'
 
 function ordinal(day) {
   if (!day) return ''
@@ -44,6 +48,7 @@ export default function OwnerTenantScreen() {
   const [maintenancePayer, setMaintenancePayer] = useState('owner') // 'owner' | 'tenant'
   const [rentDueDay, setRentDueDay] = useState(null)
   const [showDayPicker, setShowDayPicker] = useState(false)
+  const [showTermsModal, setShowTermsModal] = useState(false)
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
@@ -111,6 +116,32 @@ export default function OwnerTenantScreen() {
     }
 
     Alert.alert('Settings Saved', 'Your rent and maintenance preferences were updated.')
+  }
+
+  function contactSupport() {
+    Alert.alert(
+      'Help & Support',
+      'How would you like to reach us?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'WhatsApp',
+          onPress: () => {
+            Linking.openURL(`https://wa.me/${SUPPORT_PHONE_NUMBER}`).catch(() =>
+              Alert.alert('Could Not Open WhatsApp', 'Make sure WhatsApp is installed.')
+            )
+          },
+        },
+        {
+          text: 'Call',
+          onPress: () => {
+            Linking.openURL(`tel:+${SUPPORT_PHONE_NUMBER}`).catch(() =>
+              Alert.alert('Could Not Open Dialer', 'Try calling manually instead.')
+            )
+          },
+        },
+      ]
+    )
   }
 
   const getInitials = name => {
@@ -323,7 +354,7 @@ export default function OwnerTenantScreen() {
         <View style={styles.groupedCard}>
           <TouchableOpacity
             style={styles.itemRow}
-            onPress={() => Alert.alert('Help & Support', 'Support team is available for your apartment building.')}
+            onPress={contactSupport}
           >
             <View style={styles.itemLeft}>
               <Ionicons name="help-circle-outline" size={18} color={c.textSecondary} />
@@ -336,7 +367,7 @@ export default function OwnerTenantScreen() {
 
           <TouchableOpacity
             style={styles.itemRow}
-            onPress={() => Alert.alert('Terms & Privacy', 'Building community guidelines & privacy terms.')}
+            onPress={() => setShowTermsModal(true)}
           >
             <View style={styles.itemLeft}>
               <Ionicons name="document-text-outline" size={18} color={c.textSecondary} />
@@ -389,6 +420,48 @@ export default function OwnerTenantScreen() {
                   </TouchableOpacity>
                 ))}
               </View>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Terms & Privacy Modal */}
+      <Modal visible={showTermsModal} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity style={styles.modalBackdrop} onPress={() => setShowTermsModal(false)} />
+          <View style={styles.modalSheet}>
+            <View style={styles.sheetHandle} />
+            <View style={styles.sheetHeader}>
+              <Text style={styles.sheetTitle}>Terms & Privacy</Text>
+              <TouchableOpacity onPress={() => setShowTermsModal(false)} style={styles.closeBtn}>
+                <Ionicons name="close" size={18} color={c.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={{ maxHeight: 420 }}>
+              <Text style={styles.termsSectionTitle}>Community Guidelines</Text>
+              <Text style={styles.termsBody}>
+                Club is provided to help residents of your building manage maintenance, notices,
+                visitor approval, and vendor services. By using the app, you agree to provide
+                accurate flat and payment information, and to use the vendor and service request
+                features responsibly.
+              </Text>
+
+              <Text style={styles.termsSectionTitle}>Payments</Text>
+              <Text style={styles.termsBody}>
+                Maintenance and rent payments are made directly between residents via UPI. Club
+                does not process or hold funds. Payment proof uploads are used only to confirm
+                payment status with your building's committee.
+              </Text>
+
+              <Text style={styles.termsSectionTitle}>Privacy</Text>
+              <Text style={styles.termsBody}>
+                Your name, flat number, and contact details are visible to your building's
+                committee and, where relevant, your flatmate (owner/tenant). Payment proof images
+                are stored securely and are only accessible to you and your committee.
+              </Text>
+
+              <Text style={styles.termsFooter}>Last updated August 2026</Text>
             </ScrollView>
           </View>
         </View>
@@ -683,5 +756,23 @@ const styles = StyleSheet.create({
   },
   dayCellTextSelected: {
     color: colors.text,
+  },
+  termsSectionTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.text,
+    marginTop: 14,
+    marginBottom: 6,
+  },
+  termsBody: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    lineHeight: 19,
+  },
+  termsFooter: {
+    fontSize: 11,
+    color: colors.textTertiary,
+    marginTop: 20,
+    marginBottom: 10,
   },
 })

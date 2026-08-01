@@ -7,6 +7,8 @@ import {
   StyleSheet,
   ScrollView,
   FlatList,
+  Alert,
+  ActivityIndicator,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -22,6 +24,7 @@ export default function ServicesScreen({ navigation }) {
   const [loading, setLoading] = useState(true)
   const [query, setQuery] = useState('')
   const [selectedCat, setSelectedCat] = useState(null)
+  const [requestingCat, setRequestingCat] = useState(null)
 
   const loadVendors = useCallback(async () => {
     if (!profile?.building_id) return
@@ -44,6 +47,38 @@ export default function ServicesScreen({ navigation }) {
   useEffect(() => {
     loadVendors()
   }, [loadVendors])
+
+  function confirmRequestService(catKey, catLabel) {
+  Alert.alert(
+    `Request ${catLabel}?`,
+    `We'll call you shortly to arrange a ${catLabel.toLowerCase()} professional.`,
+    [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Yes, Request', onPress: () => requestService(catKey, catLabel) },
+    ]
+  )
+}
+
+async function requestService(catKey, catLabel) {
+  if (!profile?.building_id || !profile?.flat_id) {
+    Alert.alert('Error', 'Your flat details are missing from your profile.')
+    return
+  }
+  setRequestingCat(catKey)
+  const { error } = await supabase.from('service_requests').insert({
+    building_id: profile.building_id,
+    flat_id: profile.flat_id,
+    requested_by: profile.id,
+    category: catKey,
+  })
+  setRequestingCat(null)
+
+  if (error) {
+    Alert.alert('Could Not Send Request', error.message)
+    return
+  }
+  navigation.navigate('ServiceContact', { categoryLabel: catLabel })
+}
 
   const filtered = vendors.filter(v =>
     !query.trim() || v.name?.toLowerCase().includes(query.toLowerCase())
@@ -92,17 +127,22 @@ export default function ServicesScreen({ navigation }) {
                   cat.unavailable && styles.gridCardDisabled,
                 ]}
                 onPress={() => {
-                  if (cat.unavailable) return
-                  setSelectedCat(selectedCat === cat.key ? null : cat.key)
+                  if (cat.unavailable || requestingCat) return
+                  confirmRequestService(cat.key, cat.label)
                 }}
                 activeOpacity={cat.unavailable ? 1 : 0.8}
+                disabled={requestingCat !== null}
               >
                 <View style={[styles.gridIconWrap, isSelected && styles.gridIconWrapSelected]}>
-                  <Ionicons
-                    name={cat.icon}
-                    size={22}
-                    color={cat.unavailable ? c.textTertiary : c.accent}
-                  />
+                  {requestingCat === cat.key ? (
+                    <ActivityIndicator size="small" color={c.accent} />
+                  ) : (
+                    <Ionicons
+                      name={cat.icon}
+                      size={22}
+                      color={cat.unavailable ? c.textTertiary : c.accent}
+                    />
+                  )}
                 </View>
                 <Text
                   style={[
