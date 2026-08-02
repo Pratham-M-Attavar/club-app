@@ -31,7 +31,7 @@ function ordinal(day) {
 }
 
 export default function OwnerTenantScreen() {
-  const { profile, signOut } = useAuth()
+  const { profile, signOut, isAdmin } = useAuth()
   const c = colors
 
   // Toggles state
@@ -177,9 +177,9 @@ export default function OwnerTenantScreen() {
           <Text style={styles.userName}>{profile?.full_name || 'Resident'}</Text>
           <Text style={styles.userRoleSub}>{roleLabel} · {unitLabel}</Text>
 
-          <View style={styles.memberPill}>
-            <Text style={styles.memberPillText}>
-              {profile?.role === 'committee' ? 'Committee Member' : 'Approved Resident'}
+          <View style={[styles.memberPill, isAdmin && { backgroundColor: 'rgba(234, 179, 8, 0.15)' }]}>
+            <Text style={[styles.memberPillText, isAdmin && { color: '#EAB308', fontWeight: '700' }]}>
+              {isAdmin ? '👑 Admin & Operator' : profile?.role === 'committee' ? 'Committee Member' : 'Approved Resident'}
             </Text>
           </View>
         </View>
@@ -303,7 +303,7 @@ export default function OwnerTenantScreen() {
               <Ionicons name="shield-outline" size={18} color={c.textSecondary} />
               <Text style={styles.itemKey}>Role</Text>
             </View>
-            <Text style={styles.itemVal}>{roleLabel}</Text>
+            <Text style={styles.itemVal}>{isAdmin ? 'Admin & Operator' : roleLabel}</Text>
           </View>
 
           <View style={styles.itemDivider} />
@@ -316,6 +316,39 @@ export default function OwnerTenantScreen() {
             <Text style={styles.itemVal}>Flat {profile?.flat_number || ''}</Text>
           </View>
         </View>
+
+        {/* ADMIN & NOTIFICATIONS Grouped Section */}
+        {isAdmin && (
+          <>
+            <Text style={styles.sectionHeader}>ADMIN & VENDOR NOTIFICATIONS</Text>
+            <View style={styles.groupedCard}>
+              <View style={styles.itemRow}>
+                <View style={styles.itemLeft}>
+                  <Ionicons name="notifications-circle-outline" size={20} color={c.accent} />
+                  <View>
+                    <Text style={styles.itemKey}>Vendor Booking Alerts</Text>
+                    <Text style={{ fontSize: 11.5, color: c.textTertiary, marginTop: 2 }}>
+                      Push alerts delivered when residents book vendors
+                    </Text>
+                  </View>
+                </View>
+                <View style={{ backgroundColor: 'rgba(34, 197, 94, 0.15)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 }}>
+                  <Text style={{ color: '#22C55E', fontSize: 11, fontWeight: '700' }}>Active</Text>
+                </View>
+              </View>
+
+              <View style={styles.itemDivider} />
+
+              <View style={styles.itemRow}>
+                <View style={styles.itemLeft}>
+                  <Ionicons name="key-outline" size={18} color={c.textSecondary} />
+                  <Text style={styles.itemKey}>Push Token Status</Text>
+                </View>
+                <Text style={styles.itemVal}>{profile?.push_token ? 'Registered' : 'Pending Permission'}</Text>
+              </View>
+            </View>
+          </>
+        )}
 
         {/* PREFERENCES Grouped Section */}
         <Text style={styles.sectionHeader}>PREFERENCES</Text>

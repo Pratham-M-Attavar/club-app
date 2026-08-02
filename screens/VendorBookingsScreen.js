@@ -18,7 +18,7 @@ function categoryLabelFor(category) {
 }
 
 export default function VendorBookingsScreen() {
-  const { profile } = useAuth()
+  const { profile, isAdmin } = useAuth()
   const [bookings, setBookings] = useState([])
   const [loading, setLoading] = useState(true)
   const [completingBooking, setCompletingBooking] = useState(null) // booking currently being marked done
@@ -44,7 +44,7 @@ export default function VendorBookingsScreen() {
   }, [profile])
 
   function canManage(booking) {
-    return booking.resident_id === profile?.id || profile?.role === 'committee'
+    return booking.resident_id === profile?.id || profile?.role === 'committee' || isAdmin
   }
 
   function openCompleteModal(booking) {

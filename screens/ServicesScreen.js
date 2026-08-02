@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
+import { notifyOperatorOfBooking } from '../lib/notifyOperator'
 import { colors, radius, VENDOR_CATEGORIES } from '../lib/theme'
 
 export default function ServicesScreen({ navigation }) {
@@ -76,14 +77,14 @@ export default function ServicesScreen({ navigation }) {
     // Also create a vendor_bookings row so this shows up in the shared
     // Bookings screen — no vendor_id or slot_time yet since none was
     // picked, just category + who requested it.
-    const { error: bookingError } = await supabase.from('vendor_bookings').insert({
+    const { error: bookingError, data: bookingData } = await supabase.from('vendor_bookings').insert({
       building_id: profile.building_id,
       resident_id: profile.id,
       booked_by: profile.id,
       flat_number: profile.flat_number,
       category: catKey,
       status: 'requested',
-    })
+    }).select('id').single()
 
     setRequestingCat(null)
 
@@ -93,6 +94,8 @@ export default function ServicesScreen({ navigation }) {
     }
     if (bookingError) {
       console.log('Could not create tracked booking:', bookingError.message)
+    } else {
+      notifyOperatorOfBooking(bookingData?.id)
     }
     navigation.navigate('ServiceContact', { categoryLabel: catLabel })
   }
