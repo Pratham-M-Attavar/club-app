@@ -56,7 +56,6 @@ function CommitteeStackNavigator() {
       />
       <CommitteeStack.Screen name="Notices" component={NoticesScreen} options={{ title: 'Notices' }} />
       <CommitteeStack.Screen name="Collections" component={CollectionsScreen} options={{ title: 'Collections' }} />
-      <CommitteeStack.Screen name="VendorBookings" component={VendorBookingsScreen} options={{ title: 'Bookings' }} />
       <CommitteeStack.Screen name="ManageCommittee" component={ManageCommitteeScreen} options={{ title: 'Members' }} />
       <CommitteeStack.Screen name="PendingResidents" component={PendingResidentsScreen} options={{ title: 'Pending Approval' }} />
       <CommitteeStack.Screen name="MaintenanceSetup" component={MaintenanceSetupScreen} />
@@ -85,6 +84,7 @@ function ServicesStackNavigator() {
       />
       <ServicesStack.Screen name="EmergencyContacts" component={EmergencyContactsScreen} options={{ title: 'Emergency Contacts' }} />
       <ServicesStack.Screen name="ServiceContact" component={ServiceContactScreen} options={{ headerShown: false }} />
+      <ServicesStack.Screen name="VendorBookings" component={VendorBookingsScreen} options={{ title: 'Bookings' }} />
     </ServicesStack.Navigator>
   )
 }

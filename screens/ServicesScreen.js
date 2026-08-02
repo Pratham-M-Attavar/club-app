@@ -49,36 +49,53 @@ export default function ServicesScreen({ navigation }) {
   }, [loadVendors])
 
   function confirmRequestService(catKey, catLabel) {
-  Alert.alert(
-    `Request ${catLabel}?`,
-    `We'll call you shortly to arrange a ${catLabel.toLowerCase()} professional.`,
-    [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Yes, Request', onPress: () => requestService(catKey, catLabel) },
-    ]
-  )
-}
-
-async function requestService(catKey, catLabel) {
-  if (!profile?.building_id || !profile?.flat_id) {
-    Alert.alert('Error', 'Your flat details are missing from your profile.')
-    return
+    Alert.alert(
+      `Request ${catLabel}?`,
+      `We'll call you shortly to arrange a ${catLabel.toLowerCase()} professional.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Yes, Request', onPress: () => requestService(catKey, catLabel) },
+      ]
+    )
   }
-  setRequestingCat(catKey)
-  const { error } = await supabase.from('service_requests').insert({
-    building_id: profile.building_id,
-    flat_id: profile.flat_id,
-    requested_by: profile.id,
-    category: catKey,
-  })
-  setRequestingCat(null)
 
-  if (error) {
-    Alert.alert('Could Not Send Request', error.message)
-    return
+  async function requestService(catKey, catLabel) {
+    if (!profile?.building_id || !profile?.flat_id) {
+      Alert.alert('Error', 'Your flat details are missing from your profile.')
+      return
+    }
+    setRequestingCat(catKey)
+
+    const { error: requestError } = await supabase.from('service_requests').insert({
+      building_id: profile.building_id,
+      flat_id: profile.flat_id,
+      requested_by: profile.id,
+      category: catKey,
+    })
+
+    // Also create a vendor_bookings row so this shows up in the shared
+    // Bookings screen — no vendor_id or slot_time yet since none was
+    // picked, just category + who requested it.
+    const { error: bookingError } = await supabase.from('vendor_bookings').insert({
+      building_id: profile.building_id,
+      resident_id: profile.id,
+      booked_by: profile.id,
+      flat_number: profile.flat_number,
+      category: catKey,
+      status: 'requested',
+    })
+
+    setRequestingCat(null)
+
+    if (requestError) {
+      Alert.alert('Could Not Send Request', requestError.message)
+      return
+    }
+    if (bookingError) {
+      console.log('Could not create tracked booking:', bookingError.message)
+    }
+    navigation.navigate('ServiceContact', { categoryLabel: catLabel })
   }
-  navigation.navigate('ServiceContact', { categoryLabel: catLabel })
-}
 
   const filtered = vendors.filter(v =>
     !query.trim() || v.name?.toLowerCase().includes(query.toLowerCase())
@@ -179,6 +196,23 @@ async function requestService(catKey, catLabel) {
           <Ionicons name="chevron-forward" size={18} color={c.textTertiary} />
         </TouchableOpacity>
 
+        {/* My Vendor Bookings Banner */}
+        <TouchableOpacity
+          style={[styles.emergencyBanner, { marginTop: 12 }]}
+          onPress={() => navigation.navigate('VendorBookings')}
+          activeOpacity={0.8}
+        >
+          <View style={styles.emergencyLeft}>
+            <View style={[styles.emergencyIconWrap, { backgroundColor: c.accentSoft }]}>
+              <Ionicons name="briefcase-outline" size={18} color={c.accent} />
+            </View>
+            <View>
+              <Text style={styles.emergencyTitle}>Vendor Bookings</Text>
+              <Text style={styles.emergencySub}>Track requested services and status</Text>
+            </View>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={c.textTertiary} />
+        </TouchableOpacity>
         {/* Vendor List for Selected Category / Search */}
         {selectedCat || query.trim() ? (
           <View style={{ marginTop: 24 }}>
