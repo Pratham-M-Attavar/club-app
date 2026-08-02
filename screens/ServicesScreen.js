@@ -74,9 +74,6 @@ export default function ServicesScreen({ navigation }) {
       category: catKey,
     })
 
-    // Also create a vendor_bookings row so this shows up in the shared
-    // Bookings screen — no vendor_id or slot_time yet since none was
-    // picked, just category + who requested it.
     const { error: bookingError, data: bookingData } = await supabase.from('vendor_bookings').insert({
       building_id: profile.building_id,
       resident_id: profile.id,
@@ -88,15 +85,13 @@ export default function ServicesScreen({ navigation }) {
 
     setRequestingCat(null)
 
-    if (requestError) {
-      Alert.alert('Could Not Send Request', requestError.message)
+    if (requestError && bookingError) {
+      Alert.alert('Could Not Send Request', requestError.message || bookingError.message)
       return
     }
-    if (bookingError) {
-      console.log('Could not create tracked booking:', bookingError.message)
-    } else {
-      notifyOperatorOfBooking(bookingData?.id)
-    }
+
+    notifyOperatorOfBooking(bookingData?.id || null, { category: catLabel })
+
     navigation.navigate('ServiceContact', { categoryLabel: catLabel })
   }
 

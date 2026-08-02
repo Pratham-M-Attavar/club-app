@@ -282,7 +282,9 @@ export default function CollectionsScreen() {
   async function generateDuesForAll() {
     const missingAmounts = rows.filter(row => Number(row.maintenance_amount) <= 0)
     if (missingAmounts.length) {
-      setError('Set a maintenance amount for every flat before generating dues.')
+      const msg = `Set maintenance amounts for all flats in Maintenance Setup before generating dues. (${missingAmounts.length} flat(s) missing amount)`
+      setError(msg)
+      Alert.alert('Maintenance Amount Required', msg)
       return
     }
     setGenerating(true)
@@ -291,7 +293,12 @@ export default function CollectionsScreen() {
       rows.map(row => ({ flat_number: row.flat_number, month, maintenance: Number(row.maintenance_amount), total: Number(row.maintenance_amount), status: 'pending', building_id: profile.building_id })),
       { onConflict: 'flat_number,month', ignoreDuplicates: true }
     )
-    if (upsertError) setError(upsertError.message)
+    if (upsertError) {
+      setError(upsertError.message)
+      Alert.alert('Could Not Generate Dues', upsertError.message)
+    } else {
+      Alert.alert('Success', `Monthly dues generated for ${monthLabel(month)}.`)
+    }
     await loadData()
     setGenerating(false)
   }

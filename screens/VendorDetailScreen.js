@@ -75,7 +75,7 @@ export default function VendorDetailScreen({ route, navigation }) {
       Alert.alert('Could not submit booking', error.message)
       return
     }
-    notifyOperatorOfBooking(data?.id)
+    notifyOperatorOfBooking(data?.id, { category: categoryLabel })
     Alert.alert('Request sent', `${vendor.name} will be notified. You can track this in My Bookings.`, [
       { text: 'OK', onPress: () => navigation.goBack() },
     ])
