@@ -8,6 +8,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 import { colors, spacing, radius, type } from '../lib/theme'
 import Button from '../components/ui/Button'
+import { notifyOperatorsOfNewResident } from '../lib/notifyOperator'
 
 // Required once per app for the browser-based OAuth flow to properly close
 // and hand control back to the app after Google redirects.
@@ -181,7 +182,7 @@ function SignUpWizard({ googleUser }) {
   useEffect(() => {
     if (query.trim().length < 2) { setBuildingResults([]); return }
     const timeout = setTimeout(() => {
-      supabase.from('buildings').select('*').ilike('name', `%${query}%`).limit(8)
+      supabase.from('public_buildings_search').select('*').ilike('name', `%${query}%`).limit(8)
         .then(({ data }) => setBuildingResults(data || []))
     }, 250)
     return () => clearTimeout(timeout)
@@ -194,7 +195,7 @@ function SignUpWizard({ googleUser }) {
       setBlocks(data || [])
       setStep('select-block')
     } else {
-      const { data } = await supabase.from('flats').select('*').eq('building_id', building.id).order('flat_number')
+      const { data } = await supabase.from('public_flats_list').select('*').eq('building_id', building.id).order('flat_number')
       setFlats(data || [])
       setStep('select-flat')
     }
@@ -202,7 +203,7 @@ function SignUpWizard({ googleUser }) {
 
   async function chooseBlock(block) {
     setSelectedBlock(block)
-    const { data } = await supabase.from('flats').select('*').eq('block_id', block.id).order('flat_number')
+    const { data } = await supabase.from('public_flats_list').select('*').eq('block_id', block.id).order('flat_number')
     setFlats(data || [])
     setStep('select-flat')
   }
@@ -218,21 +219,27 @@ function SignUpWizard({ googleUser }) {
   }
 
   async function insertProfile(userId) {
-    const combinedFlatNumber = selectedBlock
-      ? `${selectedBlock.name}-${selectedFlat.flat_number}`
-      : selectedFlat.flat_number
-
     const { error: profileError } = await supabase.from('profiles').insert({
       id: userId,
       full_name: fullName,
-      flat_number: combinedFlatNumber,
+      flat_number: selectedFlat.flat_number,
       flat_type: selectedFlat.flat_type,
       ownership,
       role: 'resident',
+      approval_status: 'pending',
       building_id: selectedBuilding.id,
       block_id: selectedBlock?.id || null,
       flat_id: selectedFlat.id,
     })
+
+    if (!profileError) {
+      notifyOperatorsOfNewResident({
+        fullName,
+        flatNumber: selectedFlat?.flat_number,
+        buildingName: selectedBuilding?.name,
+      })
+    }
+
     return profileError
   }
 

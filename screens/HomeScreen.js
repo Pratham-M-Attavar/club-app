@@ -20,12 +20,14 @@ import { useAuth } from '../lib/AuthContext'
 import { pickAndUploadProof } from '../lib/paymentProof'
 import { colors } from '../lib/theme'
 import { getCurrentMonthStr } from '../lib/format'
+import BuildingPickerModal from '../components/BuildingPickerModal'
 
 export default function HomeScreen({ navigation }) {
 
-  const { profile } = useAuth()
+  const { profile, isAdmin, adminBuilding, realProfile } = useAuth()
   const c = colors
   const [refreshing, setRefreshing] = useState(false)
+  const [showBuildingPicker, setShowBuildingPicker] = useState(false)
   // Dynamic Supabase State
   const [buildingInfo, setBuildingInfo] = useState(null)
   const [flatInfo, setFlatInfo] = useState(null)
@@ -81,6 +83,16 @@ export default function HomeScreen({ navigation }) {
         .maybeSingle()
         .then(({ data }) => {
           if (data) setBuildingInfo(data)
+          else {
+            supabase
+              .from('public_buildings_search')
+              .select('*')
+              .eq('id', profile.building_id)
+              .maybeSingle()
+              .then(({ data: viewData }) => {
+                if (viewData) setBuildingInfo(viewData)
+              })
+          }
         })
     }
 
@@ -355,24 +367,66 @@ export default function HomeScreen({ navigation }) {
   }>
         {/* Header */}
         <View style={styles.headerRow}>
-          <View>
+          <View style={{ flex: 1 }}>
             <Text style={styles.greetingText}>{getGreeting()}</Text>
             <Text style={styles.nameText}>
               {profile?.full_name?.split(' ')[0] || 'Resident'}
             </Text>
             <Text style={styles.subtitleText}>
-              {apartmentName} · Flat {flatNumber}
+              {apartmentName} {flatNumber ? `· Flat ${flatNumber}` : ''}
             </Text>
           </View>
-          <TouchableOpacity
-            style={styles.bellButton}
-            onPress={() => setShowNoticesModal(true)}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="notifications-outline" size={20} color={c.text} />
-            {notices.length > 0 && <View style={styles.bellBadge} />}
-          </TouchableOpacity>
+
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            {isAdmin && (
+              <TouchableOpacity
+                style={styles.buildingPillBtn}
+                onPress={() => setShowBuildingPicker(true)}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="business" size={15} color={c.accent} />
+                <Text style={styles.buildingPillText} numberOfLines={1}>
+                  {adminBuilding ? adminBuilding.name : 'Building'}
+                </Text>
+                <Ionicons name="chevron-down" size={13} color={c.accent} />
+              </TouchableOpacity>
+            )}
+
+            <TouchableOpacity
+              style={styles.bellButton}
+              onPress={() => setShowNoticesModal(true)}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="notifications-outline" size={20} color={c.text} />
+              {notices.length > 0 && <View style={styles.bellBadge} />}
+            </TouchableOpacity>
+          </View>
         </View>
+
+        {/* ADMIN MODE BANNER (When managing another building without being a resident) */}
+        {isAdmin && adminBuilding && (
+          <TouchableOpacity
+            style={styles.adminModeBanner}
+            onPress={() => setShowBuildingPicker(true)}
+            activeOpacity={0.85}
+          >
+            <View style={styles.adminModeIconWrap}>
+              <Ionicons name="shield-checkmark" size={18} color="#EAB308" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.adminModeTitle}>
+                Admin Mode · {adminBuilding.name}
+              </Text>
+              <Text style={styles.adminModeSub}>
+                Managing building accounts & committee without resident flat
+              </Text>
+            </View>
+            <View style={styles.adminModeSwitchBadge}>
+              <Text style={styles.adminModeSwitchText}>Switch</Text>
+              <Ionicons name="swap-horizontal" size={12} color="#EAB308" />
+            </View>
+          </TouchableOpacity>
+        )}
 
         {/* Dynamic Main Rent / Maintenance Banner */}
         <TouchableOpacity
@@ -859,6 +913,11 @@ export default function HomeScreen({ navigation }) {
           </View>
         </View>
       </Modal>
+
+      <BuildingPickerModal
+        visible={showBuildingPicker}
+        onClose={() => setShowBuildingPicker(false)}
+      />
     </SafeAreaView>
   )
 }
@@ -867,6 +926,66 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.bg,
+  },
+  buildingPillBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: colors.accentSoft,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(234, 179, 8, 0.3)',
+    maxWidth: 130,
+  },
+  buildingPillText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.accent,
+  },
+  adminModeBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: 'rgba(234, 179, 8, 0.1)',
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(234, 179, 8, 0.3)',
+    marginBottom: 20,
+  },
+  adminModeIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: 'rgba(234, 179, 8, 0.18)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  adminModeTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  adminModeSub: {
+    fontSize: 11.5,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  adminModeSwitchBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(234, 179, 8, 0.2)',
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+  adminModeSwitchText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#EAB308',
   },
   scrollContent: {
     paddingHorizontal: 20,

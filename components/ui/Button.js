@@ -1,14 +1,7 @@
 import { TouchableOpacity, Text, StyleSheet, ActivityIndicator } from 'react-native'
+import { colors, spacing, radius } from '../../lib/theme'
 
-import {
-    colors,
-    spacing,
-    radius,
-    type,
-    shadow
-} from '../../lib/theme'
-export default function Button({ label, onPress, variant = 'primary', disabled, loading, style, textStyle }) {
-  
+export default function Button({ label, title, onPress, variant = 'primary', disabled, loading, style, textStyle }) {
   const c = colors
 
   const variants = {
@@ -18,6 +11,7 @@ export default function Button({ label, onPress, variant = 'primary', disabled, 
     ghost: { bg: 'transparent', text: c.accent, border: 'transparent' },
   }
   const v = variants[variant] || variants.primary
+  const displayText = label || title || ''
 
   return (
     <TouchableOpacity
@@ -34,7 +28,7 @@ export default function Button({ label, onPress, variant = 'primary', disabled, 
       {loading ? (
         <ActivityIndicator size="small" color={v.text} />
       ) : (
-        <Text style={[styles.text, { color: v.text }, textStyle]}>{label}</Text>
+        <Text style={[styles.text, { color: v.text }, textStyle]}>{displayText}</Text>
       )}
     </TouchableOpacity>
   )

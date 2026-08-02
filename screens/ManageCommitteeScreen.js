@@ -5,7 +5,7 @@ import { useAuth } from '../lib/AuthContext'
 import { colors, spacing, radius } from '../lib/theme'
 
 export default function ManageCommitteeScreen() {
-  const { profile } = useAuth()
+  const { profile, isAdmin } = useAuth()
   const [residents, setResidents] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -44,24 +44,34 @@ export default function ManageCommitteeScreen() {
       <Text style={styles.title}>Manage committee</Text>
       <Text style={styles.sub}>Promote a resident to committee, or step someone down.</Text>
 
-      {residents.map(r => (
-        <View key={r.id} style={styles.row}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.flatNumber}>{r.flat_number} — {r.full_name}</Text>
-            <View style={[styles.roleChip, r.role === 'committee' ? styles.roleChipCommittee : styles.roleChipResident]}>
-              <Text style={[styles.roleText, r.role === 'committee' ? styles.roleTextCommittee : styles.roleTextResident]}>
-                {r.role}
-              </Text>
+      {residents.map(r => {
+        const isPersonAdmin = r.is_admin || r.is_operator
+        return (
+          <View key={r.id} style={styles.row}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.flatNumber}>{r.flat_number} — {r.full_name}</Text>
+              <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
+                <View style={[styles.roleChip, r.role === 'committee' ? styles.roleChipCommittee : styles.roleChipResident]}>
+                  <Text style={[styles.roleText, r.role === 'committee' ? styles.roleTextCommittee : styles.roleTextResident]}>
+                    {r.role}
+                  </Text>
+                </View>
+                {isPersonAdmin && (
+                  <View style={[styles.roleChip, { backgroundColor: 'rgba(234, 179, 8, 0.15)' }]}>
+                    <Text style={[styles.roleText, { color: '#EAB308' }]}>Admin</Text>
+                  </View>
+                )}
+              </View>
             </View>
-          </View>
 
-          {r.id !== profile.id && (
-            <TouchableOpacity style={styles.toggleBtn} onPress={() => toggleRole(r)}>
-              <Text style={styles.toggleBtnText}>{r.role === 'committee' ? 'Step down' : 'Promote'}</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      ))}
+            {r.id !== profile.id && !isPersonAdmin && (
+              <TouchableOpacity style={styles.toggleBtn} onPress={() => toggleRole(r)}>
+                <Text style={styles.toggleBtnText}>{r.role === 'committee' ? 'Step down' : 'Promote'}</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )
+      })}
     </ScrollView>
   )
 }

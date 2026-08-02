@@ -1,7 +1,11 @@
+import { useEffect, useState } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { colors } from '../lib/theme'
+import { useAuth } from '../lib/AuthContext'
+import { supabase } from '../lib/supabase'
+import BuildingPickerModal from '../components/BuildingPickerModal'
 
 const MENU_ITEMS = [
   { key: 'PendingResidents', label: 'Pending Residents', icon: 'person-add-outline' },
@@ -11,9 +15,26 @@ const MENU_ITEMS = [
   { key: 'ManageCommittee', label: 'Manage Committee', icon: 'people-outline' },
 ]
 
-
 export default function CommitteeMenuScreen({ navigation }) {
   const c = colors
+  const { profile, isAdmin, adminBuilding } = useAuth()
+  const [showBuildingPicker, setShowBuildingPicker] = useState(false)
+  const [buildingName, setBuildingName] = useState('')
+
+  useEffect(() => {
+    if (adminBuilding?.name) {
+      setBuildingName(adminBuilding.name)
+    } else if (profile?.building_id) {
+      supabase
+        .from('public_buildings_search')
+        .select('name')
+        .eq('id', profile.building_id)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (data?.name) setBuildingName(data.name)
+        })
+    }
+  }, [profile, adminBuilding])
 
   return (
     <SafeAreaView style={styles.container}>
@@ -22,6 +43,33 @@ export default function CommitteeMenuScreen({ navigation }) {
           <Text style={styles.titleText}>Committee Management</Text>
           <Text style={styles.subtitleText}>Manage your building in one place</Text>
         </View>
+
+        {/* ADMIN BUILDING SWITCHER BAR */}
+        {isAdmin && (
+          <TouchableOpacity
+            style={styles.buildingBar}
+            onPress={() => setShowBuildingPicker(true)}
+            activeOpacity={0.8}
+          >
+            <View style={styles.buildingBarLeft}>
+              <View style={styles.buildingIconWrap}>
+                <Ionicons name="business" size={18} color={c.accent} />
+              </View>
+              <View>
+                <Text style={styles.buildingBarLabel}>Active Management Scope</Text>
+                <Text style={styles.buildingBarName}>
+                  {adminBuilding ? adminBuilding.name : (buildingName || 'Home Building')}
+                  {adminBuilding ? ' (Admin View)' : ''}
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.switchBadge}>
+              <Text style={styles.switchBadgeText}>Switch</Text>
+              <Ionicons name="swap-horizontal" size={14} color={c.accent} />
+            </View>
+          </TouchableOpacity>
+        )}
 
         <View style={styles.menuList}>
           {MENU_ITEMS.map(item => (
@@ -40,6 +88,11 @@ export default function CommitteeMenuScreen({ navigation }) {
           ))}
         </View>
       </ScrollView>
+
+      <BuildingPickerModal
+        visible={showBuildingPicker}
+        onClose={() => setShowBuildingPicker(false)}
+      />
     </SafeAreaView>
   )
 }
@@ -55,7 +108,7 @@ const styles = StyleSheet.create({
     paddingBottom: 30,
   },
   headerBlock: {
-    marginBottom: 20,
+    marginBottom: 16,
   },
   titleText: {
     fontSize: 28,
@@ -67,6 +120,58 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.textSecondary,
     marginTop: 4,
+  },
+  buildingBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: colors.accent,
+    marginBottom: 20,
+  },
+  buildingBarLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  buildingIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: colors.accentSoft,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  buildingBarLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.textTertiary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  buildingBarName: {
+    fontSize: 14.5,
+    fontWeight: '700',
+    color: colors.text,
+    marginTop: 1,
+  },
+  switchBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.accentSoft,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+  },
+  switchBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.accent,
   },
   menuList: {
     gap: 12,

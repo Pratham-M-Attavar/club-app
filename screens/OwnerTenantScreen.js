@@ -17,6 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { useAuth } from '../lib/AuthContext'
 import { colors } from '../lib/theme'
 import { supabase } from '../lib/supabase'
+import BuildingPickerModal from '../components/BuildingPickerModal'
 
 const DAYS = Array.from({ length: 31 }, (_, i) => i + 1)
 
@@ -31,7 +32,7 @@ function ordinal(day) {
 }
 
 export default function OwnerTenantScreen() {
-  const { profile, signOut, isAdmin } = useAuth()
+  const { profile, signOut, isAdmin, adminBuilding, switchBuilding } = useAuth()
   const c = colors
 
   // Toggles state
@@ -41,6 +42,8 @@ export default function OwnerTenantScreen() {
   // Supabase Dynamic Data
   const [buildingInfo, setBuildingInfo] = useState(null)
   const [flatInfo, setFlatInfo] = useState(null)
+  const [allBuildings, setAllBuildings] = useState([])
+  const [showBuildingPicker, setShowBuildingPicker] = useState(false)
 
   // Owner Management Form State
   const [rentAmount, setRentAmount] = useState('')
@@ -161,6 +164,12 @@ export default function OwnerTenantScreen() {
   // Fully dynamic apartment and unit label (NO HARDCODING)
   const apartmentName = buildingInfo?.name || 'Apartment'
   const unitLabel = `${apartmentName} · Unit ${profile?.flat_number || ''}`
+
+  async function openBuildingPicker() {
+    setShowBuildingPicker(true)
+    const { data } = await supabase.from('buildings').select('*').order('name')
+    setAllBuildings(data || [])
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -320,8 +329,26 @@ export default function OwnerTenantScreen() {
         {/* ADMIN & NOTIFICATIONS Grouped Section */}
         {isAdmin && (
           <>
-            <Text style={styles.sectionHeader}>ADMIN & VENDOR NOTIFICATIONS</Text>
+            <Text style={styles.sectionHeader}>ADMIN CONTROLS & NOTIFICATIONS</Text>
             <View style={styles.groupedCard}>
+              <TouchableOpacity style={styles.itemRow} onPress={openBuildingPicker}>
+                <View style={styles.itemLeft}>
+                  <Ionicons name="business-outline" size={20} color={c.accent} />
+                  <View>
+                    <Text style={styles.itemKey}>Active Building</Text>
+                    <Text style={{ fontSize: 11.5, color: c.textTertiary, marginTop: 2 }}>
+                      {adminBuilding ? adminBuilding.name : (buildingInfo?.name || 'Home Building')}
+                    </Text>
+                  </View>
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Text style={{ color: c.accent, fontSize: 13, fontWeight: '600' }}>Switch</Text>
+                  <Ionicons name="chevron-forward" size={16} color={c.accent} />
+                </View>
+              </TouchableOpacity>
+
+              <View style={styles.itemDivider} />
+
               <View style={styles.itemRow}>
                 <View style={styles.itemLeft}>
                   <Ionicons name="notifications-circle-outline" size={20} color={c.accent} />
@@ -499,6 +526,11 @@ export default function OwnerTenantScreen() {
           </View>
         </View>
       </Modal>
+
+      <BuildingPickerModal
+        visible={showBuildingPicker}
+        onClose={() => setShowBuildingPicker(false)}
+      />
     </SafeAreaView>
   )
 }
