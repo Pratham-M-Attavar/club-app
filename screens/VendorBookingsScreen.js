@@ -33,6 +33,7 @@ export default function VendorBookingsScreen() {
       .select('*, vendors(category)')
       .eq('building_id', profile.building_id)
       .order('created_at', { ascending: false })
+      .limit(9)
       .then(({ data }) => {
         setBookings(data || [])
         setLoading(false)

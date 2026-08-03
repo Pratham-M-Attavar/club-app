@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   View,
   Text,
@@ -35,6 +35,10 @@ export default function HomeScreen({ navigation }) {
 
   const [currentDue, setCurrentDue] = useState(null)
   const [duesLoading, setDuesLoading] = useState(true)
+  // A Realtime event is newer than any request that started before it.
+  // Incrementing this invalidates those in-flight reads so they cannot put
+  // the previous amount back on screen after the event has updated the card.
+  const dueRequestVersion = useRef(0)
 
   const [tickets, setTickets] = useState([])
   const [notices, setNotices] = useState([])
@@ -47,6 +51,10 @@ export default function HomeScreen({ navigation }) {
   const [uploadingProof, setUploadingProof] = useState(false)
   const [notifyingCommittee, setNotifyingCommittee] = useState(false)
   const [rentPayment, setRentPayment] = useState(null)
+  const [previousRentPayment, setPreviousRentPayment] = useState(null)
+  const rentRequestVersion = useRef(0)
+  const [notifyingOwner, setNotifyingOwner] = useState(false)
+  const [reviewingRent, setReviewingRent] = useState(false)
   const [sendingRentReminder, setSendingRentReminder] = useState(false)
 
   function loadEverything() {
@@ -55,9 +63,12 @@ export default function HomeScreen({ navigation }) {
     const monthStr = getCurrentMonthStr()
 
     function loadCurrentDue(flatNumber) {
+      const requestVersion = ++dueRequestVersion.current
       if (!flatNumber) {
-        setCurrentDue(null)
-        setDuesLoading(false)
+        if (requestVersion === dueRequestVersion.current) {
+          setCurrentDue(null)
+          setDuesLoading(false)
+        }
         return
       }
       setDuesLoading(true)
@@ -69,6 +80,7 @@ export default function HomeScreen({ navigation }) {
         .eq('month', monthStr)
         .maybeSingle()
         .then(({ data, error }) => {
+          if (requestVersion !== dueRequestVersion.current) return
           if (error) console.log('Could not load maintenance due:', error.message)
           setCurrentDue(data || null)
           setDuesLoading(false)
@@ -143,6 +155,56 @@ export default function HomeScreen({ navigation }) {
     if (profile) loadEverything()
   }, [profile])
 
+  // Keep the card current when the committee changes this flat's amount or
+  // its current-month due while the resident is already on the home screen.
+  useEffect(() => {
+    if (!profile?.building_id || !profile?.flat_id) return
+
+    const currentMonth = getCurrentMonthStr()
+    const channel = supabase
+      .channel(`home-maintenance-${profile.id}`)
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'flats', filter: `id=eq.${profile.flat_id}` },
+        ({ new: updatedFlat }) => {
+          rentRequestVersion.current += 1
+          setFlatInfo(previous => ({ ...previous, ...updatedFlat }))
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'dues', filter: `building_id=eq.${profile.building_id}` },
+        ({ eventType, new: updatedDue, old: previousDue }) => {
+          const due = eventType === 'DELETE' ? previousDue : updatedDue
+          const flatNumber = flatInfo?.flat_number || profile.flat_number
+          if (due?.flat_number !== flatNumber || due?.month !== currentMonth) return
+          dueRequestVersion.current += 1
+          setCurrentDue(eventType === 'DELETE' ? null : updatedDue)
+          setDuesLoading(false)
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'rent_payments', filter: `flat_id=eq.${profile.flat_id}` },
+        ({ eventType, new: updatedPayment, old: previousPayment }) => {
+          const payment = eventType === 'DELETE' ? previousPayment : updatedPayment
+          if (payment?.month !== currentMonth) return
+          rentRequestVersion.current += 1
+          setRentPayment(eventType === 'DELETE' ? null : updatedPayment)
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [profile?.id, profile?.building_id, profile?.flat_id, profile?.flat_number, flatInfo?.flat_number])
+
+  // Home remains mounted in the tab navigator, so refresh its server state
+  // whenever the resident returns to it (also covers projects without
+  // Supabase Realtime enabled).
+  useEffect(() => navigation.addListener('focus', loadEverything), [navigation, profile])
+
   useEffect(() => {
     if (!profile?.flat_id || !flatInfo) return
     if (!counterpart && profile.ownership === 'owner') {
@@ -151,13 +213,8 @@ export default function HomeScreen({ navigation }) {
     }
     loadOrCreateRent()
   }, [profile, flatInfo, counterpart])
-  function getCurrentMonthStr() {
-  const now = new Date()
-  const year = now.getFullYear()
-  const month = String(now.getMonth() + 1).padStart(2, '0')
-  return `${year}-${month}-01`
-}
   async function loadOrCreateRent() {
+    const requestVersion = ++rentRequestVersion.current
     const firstOfMonth = new Date()
     firstOfMonth.setDate(1)
     const monthStr = getCurrentMonthStr()
@@ -187,7 +244,17 @@ export default function HomeScreen({ navigation }) {
       .eq('month', monthStr)
       .maybeSingle()
 
+    if (requestVersion !== rentRequestVersion.current) return
     setRentPayment(data)
+    const { data: previousPayment } = await supabase
+      .from('rent_payments')
+      .select('id, status, month')
+      .eq('flat_id', profile.flat_id)
+      .lt('month', monthStr)
+      .order('month', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    if (requestVersion === rentRequestVersion.current) setPreviousRentPayment(previousPayment)
   }
 
   async function payViaGPay(targetUpiId, targetName, amount, noteText) {
@@ -311,6 +378,24 @@ export default function HomeScreen({ navigation }) {
     setSendingRentReminder(false)
   }
 
+  async function notifyOwnerOfRentPayment() {
+    if (!rentPayment?.id) return
+    setNotifyingOwner(true)
+    const { error } = await supabase.from('rent_payments').update({ status: 'submitted' }).eq('id', rentPayment.id)
+    setNotifyingOwner(false)
+    if (error) return Alert.alert('Could Not Notify Owner', error.message)
+    Alert.alert('Owner Notified', 'Your payment is waiting for the owner’s approval.')
+  }
+
+  async function reviewRentPayment(approved) {
+    if (!rentPayment?.id) return
+    setReviewingRent(true)
+    const { error } = await supabase.from('rent_payments').update(approved ? { status: 'paid', paid_at: new Date().toISOString() } : { status: 'pending' }).eq('id', rentPayment.id)
+    setReviewingRent(false)
+    if (error) return Alert.alert('Could Not Update Rent', error.message)
+    Alert.alert(approved ? 'Rent Approved' : 'Rent Declined', approved ? 'Rent is marked paid for this month.' : 'The tenant can notify you again after payment.')
+  }
+
   async function handleRefresh() {
   setRefreshing(true)
   try {
@@ -335,6 +420,25 @@ export default function HomeScreen({ navigation }) {
   const flatNumber = profile?.flat_number || ''
   const isTenant = profile?.ownership === 'tenant'
   const isOwnerWithTenant = profile?.ownership === 'owner' && Boolean(counterpart)
+  const rentUnderReview = rentPayment?.status === 'submitted'
+  const rentPaid = rentPayment?.status === 'paid'
+  const rentDueDay = Number(flatInfo?.rent_due_day)
+  const rentDueDate = rentDueDay
+    ? new Date(new Date().getFullYear(), new Date().getMonth(), rentDueDay)
+    : null
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const daysUntilRentDue = rentDueDate ? Math.ceil((rentDueDate - today) / 86400000) : null
+  const isRentDueWindow = daysUntilRentDue !== null && daysUntilRentDue <= 7
+  // Before the seven-day window, a previously paid tenant remains shown as
+  // paid. A new tenant has no previous record, so they see Due soon instead.
+  const showPreviousRentAsPaid = !rentPaid && !rentUnderReview && !isRentDueWindow && previousRentPayment?.status === 'paid'
+  const rentDisplayStatus = rentPaid || showPreviousRentAsPaid ? 'paid' : rentUnderReview ? 'submitted' : 'due'
+  const rentCountdownText = daysUntilRentDue === null
+    ? 'Due soon'
+    : daysUntilRentDue > 7 ? 'Due soon'
+    : daysUntilRentDue > 0 ? `Due in ${daysUntilRentDue} day${daysUntilRentDue === 1 ? '' : 's'}`
+    : daysUntilRentDue === 0 ? 'Due today' : `${Math.abs(daysUntilRentDue)} day${Math.abs(daysUntilRentDue) === 1 ? '' : 's'} overdue`
 
   // Who currently owes maintenance for this flat. Defaults to 'owner' when
   // unset (matches OwnerTenantScreen's default). Only meaningful when the
@@ -449,16 +553,16 @@ export default function HomeScreen({ navigation }) {
             <View
               style={[
                 styles.dueBadge,
-                currentDue?.status === 'paid' && { backgroundColor: c.successBg },
+                (isTenant ? rentDisplayStatus === 'paid' : currentDue?.status === 'paid') && { backgroundColor: c.successBg },
               ]}
             >
               <Text
                 style={[
                   styles.dueBadgeText,
-                  currentDue?.status === 'paid' && { color: c.success },
+                  (isTenant ? rentDisplayStatus === 'paid' : currentDue?.status === 'paid') && { color: c.success },
                 ]}
               >
-                {currentDue?.status === 'paid' ? 'Paid' : currentDue?.status === 'submitted' ? 'Under Review' : 'Due Soon'}
+                {isTenant ? rentDisplayStatus === 'paid' ? 'Paid' : rentDisplayStatus === 'submitted' ? 'Under Review' : rentCountdownText : currentDue?.status === 'paid' ? 'Paid' : currentDue?.status === 'submitted' ? 'Under Review' : 'Due Soon'}
               </Text>
             </View>
           </View>
@@ -501,19 +605,19 @@ export default function HomeScreen({ navigation }) {
                   styles.colIconWrap,
                   {
                     backgroundColor:
-                      rentPayment?.status === 'paid' ? c.successBg : c.warningBg,
+                      rentDisplayStatus === 'paid' ? c.successBg : c.warningBg,
                   },
                 ]}
               >
                 <Ionicons
-                  name={rentPayment?.status === 'paid' ? 'cash-outline' : 'time-outline'}
+                  name={rentDisplayStatus === 'paid' ? 'cash-outline' : 'time-outline'}
                   size={18}
-                  color={rentPayment?.status === 'paid' ? c.success : c.warning}
+                  color={rentDisplayStatus === 'paid' ? c.success : c.warning}
                 />
               </View>
               <Text style={styles.colLabel}>Rent Status</Text>
               <Text style={styles.colValueBold}>
-                {rentPayment?.status === 'paid' ? 'Received' : 'Pending'}
+                {rentDisplayStatus === 'paid' ? 'Received' : rentDisplayStatus === 'submitted' ? 'Under Review' : rentCountdownText}
               </Text>
               <Text
                 style={
@@ -671,7 +775,8 @@ export default function HomeScreen({ navigation }) {
 
             {/* Only the tenant pays rent. The owner (payee) sees a
                 read-only status line instead of a pay action. */}
-            {isTenant ? (
+            {isTenant && !rentPaid && !rentUnderReview ? (
+              <>
               <TouchableOpacity
                 style={styles.primaryButton}
                 onPress={() => {
@@ -687,6 +792,15 @@ export default function HomeScreen({ navigation }) {
                 <Ionicons name="logo-google" size={18} color={c.text} style={{ marginRight: 8 }} />
                 <Text style={styles.primaryButtonText}>Pay Now with GPay</Text>
               </TouchableOpacity>
+              <TouchableOpacity style={[styles.primaryButton, { marginTop: 10 }]} onPress={notifyOwnerOfRentPayment} disabled={notifyingOwner}>
+                {notifyingOwner ? <ActivityIndicator color={c.text} /> : <Text style={styles.primaryButtonText}>I've Paid — Notify Owner</Text>}
+              </TouchableOpacity>
+              </>
+            ) : isTenant ? (
+              <View style={[styles.paidStatusCard, rentUnderReview && { backgroundColor: c.warningBg, borderColor: 'rgba(245,158,11,0.3)' }]}>
+                <Ionicons name={rentPaid ? "checkmark-circle-outline" : "time-outline"} size={24} color={rentPaid ? c.success : c.warning} />
+                <View><Text style={[styles.paidStatusTitle, rentUnderReview && { color: c.warning }]}>{rentPaid ? 'Rent Paid' : 'Payment Under Review'}</Text><Text style={styles.paidStatusSub}>{rentPaid ? `${currentMonthName} âœ“` : 'Waiting for owner approval'}</Text></View>
+              </View>
             ) : (
               <>
                 <View
@@ -710,7 +824,7 @@ export default function HomeScreen({ navigation }) {
                         rentPayment?.status !== 'paid' && { color: c.warning },
                       ]}
                     >
-                      {rentPayment?.status === 'paid' ? 'Rent Received' : 'Rent Pending'}
+                      {rentPaid ? 'Rent Received' : rentUnderReview ? 'Payment Awaiting Approval' : 'Rent Pending'}
                     </Text>
                     <Text style={styles.paidStatusSub}>
                       {rentPayment?.status === 'paid'
@@ -720,7 +834,12 @@ export default function HomeScreen({ navigation }) {
                   </View>
                 </View>
 
-                {rentPayment?.status !== 'paid' && (
+                {rentUnderReview ? (
+                  <View style={{ flexDirection: 'row', gap: 10 }}>
+                    <TouchableOpacity style={[styles.primaryButton, { flex: 1, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border }]} onPress={() => reviewRentPayment(false)} disabled={reviewingRent}><Text style={[styles.primaryButtonText, { color: c.textSecondary }]}>Decline</Text></TouchableOpacity>
+                    <TouchableOpacity style={[styles.primaryButton, { flex: 1 }]} onPress={() => reviewRentPayment(true)} disabled={reviewingRent}>{reviewingRent ? <ActivityIndicator color={c.text} /> : <Text style={styles.primaryButtonText}>Approve</Text>}</TouchableOpacity>
+                  </View>
+                ) : rentPayment?.status !== 'paid' && isRentDueWindow && (
                   <TouchableOpacity
                     style={styles.primaryButton}
                     onPress={remindTenantRent}

@@ -53,16 +53,37 @@ export default function MaintenanceSetupScreen({ navigation }) {
     setFlats(data || [])
 
     const draft = {}
-    ;(data || []).forEach(f => {
-      draft[f.id] = f.maintenance_amount != null ? String(f.maintenance_amount) : ''
-    })
+      ; (data || []).forEach(f => {
+        draft[f.id] = f.maintenance_amount != null ? String(f.maintenance_amount) : ''
+      })
     setFlatAmounts(draft)
 
     setLoading(false)
   }
-
+  function getCurrentMonthStr() {
+    const now = new Date()
+    const year = now.getFullYear()
+    const month = String(now.getMonth() + 1).padStart(2, '0')
+    return `${year}-${month}-01`
+  }
   function updateFlatAmount(flatId, value) {
     setFlatAmounts(prev => ({ ...prev, [flatId]: value }))
+  }
+
+  // Update the active unpaid due before the flat's default. That way, a
+  // resident who is looking at the home card never sees an old current-month
+  // due after seeing the new default amount. Paid/submitted dues are left
+  // alone; the new flat amount is then used for the following month.
+  async function updateCurrentPendingDue(flatNumber, amount) {
+    const { error } = await supabase
+      .from('dues')
+      .update({ maintenance: amount, total: amount })
+      .eq('building_id', profile.building_id)
+      .eq('flat_number', flatNumber)
+      .eq('month', getCurrentMonthStr())
+      .eq('status', 'pending')
+
+    if (error) throw error
   }
 
   async function handleSaveSameForAll() {
@@ -73,20 +94,23 @@ export default function MaintenanceSetupScreen({ navigation }) {
     }
 
     setSaving(true)
-    const { error } = await supabase
-      .from('flats')
-      .update({ maintenance_amount: numeric })
-      .eq('building_id', profile.building_id)
+    try {
+      await Promise.all(flats.map(flat => updateCurrentPendingDue(flat.flat_number, numeric)))
 
-    setSaving(false)
+      const { error } = await supabase
+        .from('flats')
+        .update({ maintenance_amount: numeric })
+        .eq('building_id', profile.building_id)
 
-    if (error) {
+      if (error) throw error
+
+      Alert.alert('Saved', 'Maintenance amount updated for every flat.')
+      loadFlats()
+    } catch (error) {
       Alert.alert('Could Not Save', error.message)
-      return
+    } finally {
+      setSaving(false)
     }
-
-    Alert.alert('Saved', 'Maintenance amount updated for every flat.')
-    loadFlats()
   }
 
   async function handleSavePerFlat() {
@@ -102,27 +126,29 @@ export default function MaintenanceSetupScreen({ navigation }) {
     }
 
     setSaving(true)
+    try {
+      const changedFlats = flats.filter(f => flatAmounts[f.id] !== '' && flatAmounts[f.id] !== undefined)
 
-    const updates = flats
-      .filter(f => flatAmounts[f.id] !== '' && flatAmounts[f.id] !== undefined)
-      .map(f =>
+      await Promise.all(changedFlats.map(flat =>
+        updateCurrentPendingDue(flat.flat_number, parseFloat(flatAmounts[flat.id]))
+      ))
+
+      const results = await Promise.all(changedFlats.map(flat =>
         supabase
           .from('flats')
-          .update({ maintenance_amount: parseFloat(flatAmounts[f.id]) })
-          .eq('id', f.id)
-      )
+          .update({ maintenance_amount: parseFloat(flatAmounts[flat.id]) })
+          .eq('id', flat.id)
+      ))
+      const failed = results.find(result => result.error)
+      if (failed) throw failed.error
 
-    const results = await Promise.all(updates)
-    setSaving(false)
-
-    const failed = results.find(r => r.error)
-    if (failed) {
-      Alert.alert('Could Not Save Some Flats', failed.error.message)
-      return
+      Alert.alert('Saved', 'Maintenance amounts updated.')
+      loadFlats()
+    } catch (error) {
+      Alert.alert('Could Not Save Some Flats', error.message)
+    } finally {
+      setSaving(false)
     }
-
-    Alert.alert('Saved', 'Maintenance amounts updated.')
-    loadFlats()
   }
 
   if (loading) {

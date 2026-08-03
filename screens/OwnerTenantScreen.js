@@ -18,6 +18,7 @@ import { useAuth } from '../lib/AuthContext'
 import { colors } from '../lib/theme'
 import { supabase } from '../lib/supabase'
 import BuildingPickerModal from '../components/BuildingPickerModal'
+import { getCurrentMonthStr } from '../lib/format'
 
 const DAYS = Array.from({ length: 31 }, (_, i) => i + 1)
 
@@ -101,24 +102,34 @@ export default function OwnerTenantScreen() {
     }
 
     setSaving(true)
-    const { error } = await supabase
-      .from('flats')
-      .update({
-        rent_amount: numericRent || null,
-        owner_upi_id: ownerUpiId.trim() || null,
-        maintenance_payer: maintenancePayer,
-        rent_due_day: rentDueDay,
-      })
-      .eq('id', flatInfo.id)
+    try {
+      // The current month's pending rent changes immediately. Paid rent keeps
+      // its recorded amount; the new flat default takes effect next month.
+      const { error: rentError } = await supabase
+        .from('rent_payments')
+        .update({ amount: numericRent || null })
+        .eq('flat_id', flatInfo.id)
+        .eq('month', getCurrentMonthStr())
+        .eq('status', 'pending')
+      if (rentError) throw rentError
 
-    setSaving(false)
+      const { error } = await supabase
+        .from('flats')
+        .update({
+          rent_amount: numericRent || null,
+          owner_upi_id: ownerUpiId.trim() || null,
+          maintenance_payer: maintenancePayer,
+          rent_due_day: rentDueDay,
+        })
+        .eq('id', flatInfo.id)
+      if (error) throw error
 
-    if (error) {
+      Alert.alert('Settings Saved', 'Your rent and maintenance preferences were updated.')
+    } catch (error) {
       Alert.alert('Could Not Save', error.message)
-      return
+    } finally {
+      setSaving(false)
     }
-
-    Alert.alert('Settings Saved', 'Your rent and maintenance preferences were updated.')
   }
 
   function contactSupport() {
