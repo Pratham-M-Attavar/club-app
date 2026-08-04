@@ -21,6 +21,7 @@ import VendorBookingsScreen from './screens/VendorBookingsScreen'
 import ManageCommitteeScreen from './screens/ManageCommitteeScreen'
 import OwnerTenantScreen from './screens/OwnerTenantScreen'
 import MaintenanceSetupScreen from './screens/MaintenanceSetupScreen'
+import CollectionHistoryScreen from './screens/CollectionHistoryScreen'
 import { View, Text, ActivityIndicator } from 'react-native'
 import ServiceContactScreen from './screens/ServiceContactScreen'
 
@@ -55,7 +56,8 @@ function CommitteeStackNavigator() {
         options={{ headerShown: false }}
       />
       <CommitteeStack.Screen name="Notices" component={NoticesScreen} options={{ title: 'Notices' }} />
-      <CommitteeStack.Screen name="Collections" component={CollectionsScreen} options={{ title: 'Collections' }} />
+      <CommitteeStack.Screen name="Collections" component={CollectionsScreen} options={{ title: '' }} />
+      <CommitteeStack.Screen name="CollectionHistory" component={CollectionHistoryScreen} options={{ title: 'Collection History' }} />
       <CommitteeStack.Screen name="ManageCommittee" component={ManageCommitteeScreen} options={{ title: 'Members' }} />
       <CommitteeStack.Screen name="PendingResidents" component={PendingResidentsScreen} options={{ title: 'Pending Approval' }} />
       <CommitteeStack.Screen name="MaintenanceSetup" component={MaintenanceSetupScreen} options={{ title: 'Maintenance Setup' }} />
