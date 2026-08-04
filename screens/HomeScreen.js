@@ -19,7 +19,7 @@ import { useAuth } from '../lib/AuthContext'
 
 import { pickAndUploadProof } from '../lib/paymentProof'
 import { colors } from '../lib/theme'
-import { getCurrentMonthStr } from '../lib/format'
+import { dueDateForMonth, getCurrentMonthStr } from '../lib/format'
 import BuildingPickerModal from '../components/BuildingPickerModal'
 
 export default function HomeScreen({ navigation }) {
@@ -34,6 +34,8 @@ export default function HomeScreen({ navigation }) {
   const [counterpart, setCounterpart] = useState(null)
 
   const [currentDue, setCurrentDue] = useState(null)
+  const [pastMaintenanceDues, setPastMaintenanceDues] = useState([])
+  const [pastUnpaidDues, setPastUnpaidDues] = useState([])
   const [duesLoading, setDuesLoading] = useState(true)
   // A Realtime event is newer than any request that started before it.
   // Incrementing this invalidates those in-flight reads so they cannot put
@@ -62,11 +64,13 @@ export default function HomeScreen({ navigation }) {
 
     const monthStr = getCurrentMonthStr()
 
-    function loadCurrentDue(flatNumber) {
+    function loadMaintenanceDues(flatNumber) {
       const requestVersion = ++dueRequestVersion.current
       if (!flatNumber) {
         if (requestVersion === dueRequestVersion.current) {
           setCurrentDue(null)
+          setPastMaintenanceDues([])
+          setPastUnpaidDues([])
           setDuesLoading(false)
         }
         return
@@ -77,12 +81,16 @@ export default function HomeScreen({ navigation }) {
         .select('*')
         .eq('building_id', profile.building_id)
         .eq('flat_number', flatNumber)
-        .eq('month', monthStr)
-        .maybeSingle()
+        .lte('month', monthStr)
+        .order('month', { ascending: false })
         .then(({ data, error }) => {
           if (requestVersion !== dueRequestVersion.current) return
-          if (error) console.log('Could not load maintenance due:', error.message)
-          setCurrentDue(data || null)
+          if (error) console.log('Could not load maintenance dues:', error.message)
+          const dues = data || []
+          const pastDues = dues.filter(due => due.month < monthStr)
+          setCurrentDue(dues.find(due => due.month === monthStr) || null)
+          setPastMaintenanceDues(pastDues)
+          setPastUnpaidDues(pastDues.filter(due => due.status === 'pending'))
           setDuesLoading(false)
         })
     }
@@ -118,7 +126,7 @@ export default function HomeScreen({ navigation }) {
           if (data) setFlatInfo(data)
           // Dues use the canonical number in flats; tenant profiles can have
           // a missing or stale flat_number.
-          loadCurrentDue(data?.flat_number || profile.flat_number)
+          loadMaintenanceDues(data?.flat_number || profile.flat_number)
         })
 
       supabase
@@ -129,7 +137,7 @@ export default function HomeScreen({ navigation }) {
         .maybeSingle()
         .then(({ data }) => setCounterpart(data))
     } else {
-      loadCurrentDue(profile.flat_number)
+      loadMaintenanceDues(profile.flat_number)
     }
 
     supabase
@@ -178,10 +186,8 @@ export default function HomeScreen({ navigation }) {
         ({ eventType, new: updatedDue, old: previousDue }) => {
           const due = eventType === 'DELETE' ? previousDue : updatedDue
           const flatNumber = flatInfo?.flat_number || profile.flat_number
-          if (due?.flat_number !== flatNumber || due?.month !== currentMonth) return
-          dueRequestVersion.current += 1
-          setCurrentDue(eventType === 'DELETE' ? null : updatedDue)
-          setDuesLoading(false)
+          if (due?.flat_number !== flatNumber || due?.month > currentMonth) return
+          loadEverything()
         }
       )
       .on(
@@ -301,8 +307,12 @@ export default function HomeScreen({ navigation }) {
   async function handleUploadProof() {
     setUploadingProof(true)
     try {
-      const amount = currentDue?.total ?? currentDue?.maintenance ?? flatInfo?.maintenance_amount ?? 0
-      const path = await pickAndUploadProof(currentDue, profile, amount)
+      // When the current month is already paid but older arrears remain, put
+      // the new proof on an outstanding row rather than overwriting a
+      // paid current-month record.
+      const proofDue = currentDue?.status === 'paid' ? pastUnpaidDues[0] : currentDue
+      const amount = proofDue?.total ?? proofDue?.maintenance ?? maintenanceTotal
+      const path = await pickAndUploadProof(proofDue, profile, amount)
       if (path) {
         Alert.alert(
           'Uploaded Successfully',
@@ -325,29 +335,48 @@ export default function HomeScreen({ navigation }) {
       setNotifyingCommittee(false)
       return
     }
-    const amount = Number(currentDue?.total ?? currentDue?.maintenance ?? flatInfo?.maintenance_amount ?? 0)
+    const currentMonthAmount = Number(currentDue?.total ?? currentDue?.maintenance ?? flatInfo?.maintenance_amount ?? 0)
+    const paymentReportedAt = new Date().toISOString()
 
-    const { error } = await supabase
-      .from('dues')
-      .upsert(
-        {
-          flat_number: effectiveFlatNumber,
-          month: monthStr,
-          maintenance: amount,
-          total: amount,
-          building_id: profile.building_id,
-          status: 'submitted',
-          proof_uploaded_at: new Date().toISOString(),
-        },
-        { onConflict: 'flat_number,month' }
-      )
+    // Do not change an already-paid current record when the resident is only
+    // clearing older arrears.
+    let error = null
+    if (currentDue?.status !== 'paid') {
+      const result = await supabase
+        .from('dues')
+        .upsert(
+          {
+            flat_number: effectiveFlatNumber,
+            month: monthStr,
+            maintenance: currentMonthAmount,
+            total: currentMonthAmount,
+            due_date: dueDateForMonth(monthStr, buildingInfo?.maintenance_due_day),
+            building_id: profile.building_id,
+            status: 'submitted',
+            proof_uploaded_at: paymentReportedAt,
+          },
+          { onConflict: 'building_id,flat_number,month' }
+        )
+      error = result.error
+    }
+
+    if (!error) {
+      const result = await supabase
+        .from('dues')
+        .update({ status: 'submitted', proof_uploaded_at: paymentReportedAt })
+        .eq('building_id', profile.building_id)
+        .eq('flat_number', effectiveFlatNumber)
+        .lte('month', monthStr)
+        .neq('status', 'paid')
+      error = result.error
+    }
 
     setNotifyingCommittee(false)
     if (error) {
       Alert.alert('Could Not Notify Committee', error.message)
       return
     }
-    Alert.alert('Committee Notified', 'Your payment is pending committee approval.')
+    Alert.alert('Committee Notified', 'Your full outstanding maintenance balance is pending committee approval.')
     loadEverything()
   }
 
@@ -479,7 +508,32 @@ export default function HomeScreen({ navigation }) {
   const maintenanceTotal = maintenanceDisplayStatus === 'due'
     ? flatInfo?.maintenance_amount ?? currentDue?.total ?? currentDue?.maintenance ?? 0
     : currentDue?.total ?? currentDue?.maintenance ?? flatInfo?.maintenance_amount ?? 0
-  const formattedMaintenanceAmount = maintenanceTotal ? `₹${Number(maintenanceTotal).toLocaleString('en-IN')}` : '₹0'
+  const pastDueTotal = pastUnpaidDues.reduce((sum, due) => sum + Number(due.total ?? due.maintenance ?? 0), 0)
+  // This only changes what the resident sees and pays attention to. The
+  // Collections screen deliberately queries the current month only, so old
+  // arrears never inflate this month's collection or expected total.
+  const maintenanceOutstandingTotal = pastDueTotal + (maintenanceDisplayStatus === 'due' ? Number(maintenanceTotal) : 0)
+  const currentPaymentTimestamp = currentDue?.status === 'paid'
+    ? currentDue.paid_at
+    : currentDue?.status === 'submitted'
+      ? currentDue.proof_uploaded_at
+      : null
+  const matchingPastPaymentDues = currentPaymentTimestamp
+    ? pastMaintenanceDues.filter(due => (
+      due.status === currentDue?.status
+      && (due.status === 'paid' ? due.paid_at : due.proof_uploaded_at) === currentPaymentTimestamp
+    ))
+    : []
+  const latestPaymentTotal = currentPaymentTimestamp
+    ? Number(maintenanceTotal) + matchingPastPaymentDues.reduce((sum, due) => sum + Number(due.total ?? due.maintenance ?? 0), 0)
+    : 0
+  // Once the resident reports or completes payment, no rows remain pending.
+  // Keep the amount from that same transaction visible instead of replacing it
+  // with ₹0 merely because the status changed.
+  const maintenanceDisplayAmount = maintenanceOutstandingTotal || latestPaymentTotal || Number(maintenanceTotal)
+  const formattedMaintenanceAmount = maintenanceDisplayAmount ? `₹${maintenanceDisplayAmount.toLocaleString('en-IN')}` : '₹0'
+  const hasPastDues = pastUnpaidDues.length > 0
+  const pastDuesLabel = `${pastUnpaidDues.length} previous month${pastUnpaidDues.length === 1 ? '' : 's'} unpaid`
 
   const openTickets = tickets.filter(t => t && t.status !== 'resolved' && t.status !== 'done')
   const inProgressTickets = tickets.filter(t => t && t.status === 'in_progress')
@@ -578,16 +632,16 @@ export default function HomeScreen({ navigation }) {
             <View
               style={[
                 styles.dueBadge,
-                (isTenant ? rentDisplayStatus === 'paid' : maintenanceDisplayStatus === 'paid') && { backgroundColor: c.successBg },
+                (isTenant ? rentDisplayStatus === 'paid' : !hasPastDues && maintenanceDisplayStatus === 'paid') && { backgroundColor: c.successBg },
               ]}
             >
               <Text
                 style={[
                   styles.dueBadgeText,
-                  (isTenant ? rentDisplayStatus === 'paid' : maintenanceDisplayStatus === 'paid') && { color: c.success },
+                  (isTenant ? rentDisplayStatus === 'paid' : !hasPastDues && maintenanceDisplayStatus === 'paid') && { color: c.success },
                 ]}
               >
-                {isTenant ? rentDisplayStatus === 'paid' ? 'Paid' : rentDisplayStatus === 'submitted' ? 'Under Review' : rentCountdownText : maintenanceDisplayStatus === 'paid' ? 'Paid' : maintenanceDisplayStatus === 'submitted' ? 'Under Review' : maintenanceDueText}
+                {isTenant ? rentDisplayStatus === 'paid' ? 'Paid' : rentDisplayStatus === 'submitted' ? 'Under Review' : rentCountdownText : hasPastDues ? pastDuesLabel : maintenanceDisplayStatus === 'paid' ? 'Paid' : maintenanceDisplayStatus === 'submitted' ? 'Under Review' : maintenanceDueText}
               </Text>
             </View>
           </View>
@@ -611,7 +665,7 @@ export default function HomeScreen({ navigation }) {
   {isTenant
     ? `Due ${flatInfo?.rent_due_day ? `on the ${flatInfo.rent_due_day}${flatInfo.rent_due_day === 1 || flatInfo.rent_due_day === 21 || flatInfo.rent_due_day === 31 ? 'st' : flatInfo.rent_due_day === 2 || flatInfo.rent_due_day === 22 ? 'nd' : flatInfo.rent_due_day === 3 || flatInfo.rent_due_day === 23 ? 'rd' : 'th'}` : currentMonthName} · Tap to pay via GPay / UPI`
     : viewerOwesMaintenance
-    ? `Due ${maintenanceDueLabel} · Tap to pay via GPay / UPI`
+    ? `${hasPastDues ? `${pastDuesLabel} + current month · ` : ''}Due ${maintenanceDueLabel} · Tap for breakdown`
     : `${counterpart?.full_name || 'Tenant'} is responsible this month`}
 </Text>
         </TouchableOpacity>
@@ -668,10 +722,10 @@ export default function HomeScreen({ navigation }) {
               </View>
               <Text style={styles.colLabel}>Maintenance</Text>
               <Text style={styles.colValueBold}>
-                {currentDue?.status === 'paid' ? 'Paid' : currentDue?.status === 'submitted' ? 'Under Review' : 'Pending'}
+                {hasPastDues ? 'Outstanding' : currentDue?.status === 'paid' ? 'Paid' : currentDue?.status === 'submitted' ? 'Under Review' : 'Pending'}
               </Text>
               <Text style={styles.colSubtextGreen}>
-                {currentMonthName} {currentDue?.status === 'paid' ? '✓' : ''}
+                {hasPastDues ? pastDuesLabel : `${currentMonthName} ${currentDue?.status === 'paid' ? '✓' : ''}`}
               </Text>
             </TouchableOpacity>
           )}
@@ -928,7 +982,7 @@ export default function HomeScreen({ navigation }) {
                     currentDue?.status !== 'paid' && { color: c.warning },
                   ]}
                 >
-                  {currentMonthName} Maintenance — {formattedMaintenanceAmount}
+                  {hasPastDues ? `Outstanding Maintenance — ${formattedMaintenanceAmount}` : `${currentMonthName} Maintenance — ${formattedMaintenanceAmount}`}
                 </Text>
                 <Text style={styles.paidStatusSub}>
                   {currentDue?.status === 'paid'
@@ -939,6 +993,29 @@ export default function HomeScreen({ navigation }) {
                 </Text>
               </View>
             </View>
+
+            {hasPastDues && (
+              <View style={styles.dueBreakdownCard}>
+                <Text style={styles.dueBreakdownTitle}>Outstanding breakdown</Text>
+                {pastUnpaidDues.slice().sort((a, b) => a.month.localeCompare(b.month)).map(due => (
+                  <View key={due.id} style={styles.dueBreakdownRow}>
+                    <Text style={styles.dueBreakdownMonth}>{new Intl.DateTimeFormat('en-IN', { month: 'long', year: 'numeric' }).format(new Date(`${due.month}T00:00:00`))}</Text>
+                    <Text style={styles.dueBreakdownAmount}>₹{Number(due.total ?? due.maintenance ?? 0).toLocaleString('en-IN')}</Text>
+                  </View>
+                ))}
+                {maintenanceDisplayStatus === 'due' && (
+                  <View style={styles.dueBreakdownRow}>
+                    <Text style={styles.dueBreakdownMonth}>{currentMonthName} (current)</Text>
+                    <Text style={styles.dueBreakdownAmount}>₹{Number(maintenanceTotal).toLocaleString('en-IN')}</Text>
+                  </View>
+                )}
+                <View style={[styles.dueBreakdownRow, styles.dueBreakdownTotal]}>
+                  <Text style={styles.dueBreakdownTotalText}>Total outstanding</Text>
+                  <Text style={styles.dueBreakdownTotalText}>₹{maintenanceOutstandingTotal.toLocaleString('en-IN')}</Text>
+                </View>
+                <Text style={styles.dueBreakdownHint}>Previous dues are shown here but are not included in this month’s collection total.</Text>
+              </View>
+            )}
 
             {/* Pay via GPay button — only for whoever currently owes
                 maintenance this month (owner by default, or tenant if the
@@ -951,13 +1028,13 @@ export default function HomeScreen({ navigation }) {
                     payViaGPay(
                       buildingInfo?.upi_id || buildingInfo?.account_details,
                       buildingInfo?.name || 'Building Maintenance',
-                      maintenanceTotal,
-                      `Maintenance - Flat ${flatNumber}`
+                      maintenanceOutstandingTotal,
+                      `Outstanding maintenance - Flat ${flatNumber}`
                     )
                   }}
                 >
                   <Ionicons name="logo-google" size={18} color={c.text} style={{ marginRight: 8 }} />
-                  <Text style={styles.primaryButtonText}>Pay Now with GPay</Text>
+                  <Text style={styles.primaryButtonText}>Pay outstanding balance with GPay</Text>
                 </TouchableOpacity>
 
                 {/* Upload Receipt Dropzone */}
@@ -977,7 +1054,7 @@ export default function HomeScreen({ navigation }) {
                     </>
                   )}
                 </TouchableOpacity>
-                {currentDue?.status !== 'paid' && (
+                {(hasPastDues || currentDue?.status !== 'paid') && (
                   <TouchableOpacity
                     style={[styles.primaryButton, { marginTop: 12, backgroundColor: c.success }]}
                     onPress={notifyCommitteeOfPayment}
@@ -1226,6 +1303,51 @@ const styles = StyleSheet.create({
   rentSubtext: {
     fontSize: 13,
     color: colors.textTertiary,
+    marginTop: 8,
+  },
+  dueBreakdownCard: {
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  dueBreakdownTitle: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: '700',
+    marginBottom: 8,
+  },
+  dueBreakdownRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 6,
+  },
+  dueBreakdownMonth: {
+    color: colors.textSecondary,
+    fontSize: 13,
+  },
+  dueBreakdownAmount: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  dueBreakdownTotal: {
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    marginTop: 4,
+    paddingTop: 10,
+  },
+  dueBreakdownTotalText: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  dueBreakdownHint: {
+    color: colors.textTertiary,
+    fontSize: 11,
+    lineHeight: 16,
     marginTop: 8,
   },
   twoColRow: {

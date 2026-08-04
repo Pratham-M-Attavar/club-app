@@ -6,7 +6,7 @@ import * as Sharing from 'expo-sharing'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 import { colors, spacing, radius, shadow } from '../lib/theme'
-import { getCurrentMonthStr } from '../lib/format'
+import { dueDateForMonth, getCurrentMonthStr } from '../lib/format'
 
 function currentMonthStr() {
   return getCurrentMonthStr()
@@ -292,9 +292,10 @@ export default function CollectionsScreen() {
     }
     setGenerating(true)
     setError('')
+    const dueDate = dueDateForMonth(month, maintenanceDueDay)
     const { error: upsertError } = await supabase.from('dues').upsert(
-      rows.map(row => ({ flat_number: row.flat_number, month, maintenance: Number(row.maintenance_amount), total: Number(row.maintenance_amount), status: 'pending', building_id: profile.building_id })),
-      { onConflict: 'flat_number,month', ignoreDuplicates: true }
+      rows.map(row => ({ flat_number: row.flat_number, month, due_date: dueDate, maintenance: Number(row.maintenance_amount), total: Number(row.maintenance_amount), status: 'pending', building_id: profile.building_id })),
+      { onConflict: 'building_id,flat_number,month', ignoreDuplicates: true }
     )
     if (upsertError) {
       setError(upsertError.message)
@@ -341,7 +342,19 @@ export default function CollectionsScreen() {
 
   async function markPaid(due, flatNumber, maintenanceAmount) {
     if (due?.id) {
-      await supabase.from('dues').update({ status: 'paid', paid_at: new Date().toISOString(), proof_url: null }).eq('id', due.id)
+      const paidAt = new Date().toISOString()
+      const { error: settleError } = await supabase
+        .from('dues')
+        .update({ status: 'paid', paid_at: paidAt })
+        .eq('building_id', profile.building_id)
+        .eq('flat_number', flatNumber)
+        .lte('month', month)
+        .neq('status', 'paid')
+      if (settleError) {
+        Alert.alert('Could Not Mark Paid', settleError.message)
+        return
+      }
+      await supabase.from('dues').update({ proof_url: null }).eq('id', due.id)
       if (due.proof_url) {
         const { error: storageError } = await supabase.storage.from('payment-proofs').remove([due.proof_url])
         if (storageError) console.log('Could not delete proof file:', storageError.message)
@@ -353,10 +366,11 @@ export default function CollectionsScreen() {
         month,
         maintenance: amount,
         total: amount,
+        due_date: dueDateForMonth(month, maintenanceDueDay),
         building_id: profile.building_id,
         status: 'paid',
         paid_at: new Date().toISOString(),
-      }, { onConflict: 'flat_number,month' })
+      }, { onConflict: 'building_id,flat_number,month' })
     }
     loadData()
   }

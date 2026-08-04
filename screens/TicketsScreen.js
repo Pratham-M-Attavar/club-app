@@ -17,12 +17,13 @@ import { useAuth } from '../lib/AuthContext'
 import { colors } from '../lib/theme'
 
 export default function TicketsScreen() {
-  const { profile } = useAuth()
+  const { profile, isCommittee } = useAuth()
   const c = colors
 
   const [tickets, setTickets] = useState([])
   const [loading, setLoading] = useState(true)
   const [showRaiseModal, setShowRaiseModal] = useState(false)
+  const [updatingTicketId, setUpdatingTicketId] = useState(null)
 
   // Raise Complaint Form State
   const [title, setTitle] = useState('')
@@ -82,19 +83,35 @@ export default function TicketsScreen() {
     loadTickets()
   }
 
+  async function updateTicketStatus(ticketId, status) {
+    setUpdatingTicketId(ticketId)
+    const { error } = await supabase
+      .from('tickets')
+      .update({ status })
+      .eq('id', ticketId)
+      .eq('building_id', profile.building_id)
+    setUpdatingTicketId(null)
+
+    if (error) {
+      Alert.alert('Could Not Update Request', error.message)
+      return
+    }
+    setTickets(previous => previous.map(ticket => ticket.id === ticketId ? { ...ticket, status } : ticket))
+  }
+
   const getStatusBadge = status => {
     switch (status) {
       case 'in_progress':
         return {
-          label: 'In Progress',
-          bg: c.accentSoft,
-          text: c.accent,
-          icon: 'time-outline',
+          label: 'Under Review',
+          bg: 'rgba(59, 130, 246, 0.16)',
+          text: '#3B82F6',
+          icon: 'search-outline',
         }
       case 'done':
       case 'resolved':
         return {
-          label: 'Resolved',
+          label: 'Finished',
           bg: c.successBg,
           text: c.success,
           icon: 'checkmark-circle-outline',
@@ -132,6 +149,7 @@ export default function TicketsScreen() {
 
               return (
                 <View key={t.id} style={styles.ticketCard}>
+                  <View style={styles.ticketMainRow}>
                   <View style={[styles.ticketIconWrap, { backgroundColor: badge.bg }]}>
                     <Ionicons name={badge.icon} size={20} color={badge.text} />
                   </View>
@@ -148,6 +166,32 @@ export default function TicketsScreen() {
                       {badge.label}
                     </Text>
                   </View>
+                  </View>
+                  {isCommittee && (
+                    <View style={styles.statusControls}>
+                      {[
+                        { key: 'pending', label: 'Pending', color: c.warning, bg: c.warningBg },
+                        { key: 'in_progress', label: 'Under Review', color: '#3B82F6', bg: 'rgba(59, 130, 246, 0.16)' },
+                        { key: 'done', label: 'Finished', color: c.success, bg: c.successBg },
+                      ].map(option => {
+                        const selected = t.status === option.key || (option.key === 'done' && t.status === 'resolved')
+                        return (
+                          <TouchableOpacity
+                            key={option.key}
+                            style={[styles.statusControl, selected && { backgroundColor: option.bg, borderColor: option.color }]}
+                            onPress={() => updateTicketStatus(t.id, option.key)}
+                            disabled={updatingTicketId === t.id || selected}
+                          >
+                            {updatingTicketId === t.id && !selected ? (
+                              <ActivityIndicator size="small" color={option.color} />
+                            ) : (
+                              <Text style={[styles.statusControlText, selected && { color: option.color }]}>{option.label}</Text>
+                            )}
+                          </TouchableOpacity>
+                        )
+                      })}
+                    </View>
+                  )}
                 </View>
               )
             })}
@@ -279,13 +323,16 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   ticketCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
     backgroundColor: colors.surface,
     borderRadius: 20,
     padding: 16,
     borderWidth: 1,
     borderColor: colors.border,
+    gap: 14,
+  },
+  ticketMainRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 14,
   },
   ticketIconWrap: {
@@ -313,6 +360,32 @@ const styles = StyleSheet.create({
   statusPillText: {
     fontSize: 12,
     fontWeight: '600',
+  },
+  statusControls: {
+    width: '100%',
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  statusControl: {
+    flex: 1,
+    minHeight: 34,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 6,
+    borderRadius: 9,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceElevated,
+  },
+  statusControlText: {
+    color: colors.textSecondary,
+    fontSize: 10,
+    fontWeight: '700',
+    textAlign: 'center',
   },
   bottomBar: {
     position: 'absolute',

@@ -26,11 +26,19 @@ export default function NoticesScreen() {
   const [deletingId, setDeletingId] = useState(null)
 
   async function loadNotices() {
-    const { data } = await supabase
+    if (!profile?.building_id) {
+      setNotices([])
+      return
+    }
+    const { data, error: loadError } = await supabase
       .from('notices')
       .select('*')
       .eq('building_id', profile.building_id)
       .order('created_at', { ascending: false })
+    if (loadError) {
+      setError(loadError.message)
+      return
+    }
     setNotices(data || [])
   }
 
@@ -71,7 +79,11 @@ export default function NoticesScreen() {
 
   async function handleDelete(noticeId) {
     setDeletingId(noticeId)
-    const { error } = await supabase.from('notices').delete().eq('id', noticeId)
+    const { error } = await supabase
+      .from('notices')
+      .delete()
+      .eq('id', noticeId)
+      .eq('building_id', profile.building_id)
     setDeletingId(null)
 
     if (error) {
