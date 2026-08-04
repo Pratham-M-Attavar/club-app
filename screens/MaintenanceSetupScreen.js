@@ -15,7 +15,9 @@ import { useAuth } from '../lib/AuthContext'
 import { colors } from '../lib/theme'
 import { supabase } from '../lib/supabase'
 
-export default function MaintenanceSetupScreen({ navigation }) {
+const DUE_DAYS = Array.from({ length: 31 }, (_, index) => index + 1)
+
+export default function MaintenanceSetupScreen() {
   const { profile } = useAuth()
   const c = colors
 
@@ -33,6 +35,7 @@ export default function MaintenanceSetupScreen({ navigation }) {
   // Per-flat draft amounts, keyed by flat id, so typing doesn't
   // re-fetch or lose other rows' edits.
   const [flatAmounts, setFlatAmounts] = useState({})
+  const selectedDueDay = Number(maintenanceDueDay) || null
 
   useEffect(() => {
     if (profile?.building_id) loadFlats()
@@ -189,27 +192,26 @@ export default function MaintenanceSetupScreen({ navigation }) {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Header */}
-        <View style={styles.headerRow}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-            <Ionicons name="chevron-back" size={22} color={c.text} />
+        <View style={styles.dueDateCard}>
+          <View style={styles.dueDateHeading}>
+            <View style={styles.dueDateIcon}><Ionicons name="calendar-outline" size={20} color={c.accent} /></View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.cardTitle}>Monthly due date</Text>
+              <Text style={styles.dueDateValue}>{selectedDueDay ? `Every month on the ${selectedDueDay}${selectedDueDay === 1 || selectedDueDay === 21 || selectedDueDay === 31 ? 'st' : selectedDueDay === 2 || selectedDueDay === 22 ? 'nd' : selectedDueDay === 3 || selectedDueDay === 23 ? 'rd' : 'th'}` : 'Choose a day'}</Text>
+            </View>
+          </View>
+          <View style={styles.dayGrid}>
+            {DUE_DAYS.map(day => {
+              const selected = selectedDueDay === day
+              return <TouchableOpacity key={day} style={[styles.dayButton, selected && styles.dayButtonSelected]} onPress={() => setMaintenanceDueDay(String(day))} activeOpacity={0.8}><Text style={[styles.dayButtonText, selected && styles.dayButtonTextSelected]}>{day}</Text></TouchableOpacity>
+            })}
+          </View>
+          <TouchableOpacity style={[styles.saveButton, !selectedDueDay && styles.saveButtonDisabled]} onPress={saveMaintenanceDueDay} disabled={savingDueDay || !selectedDueDay}>
+            {savingDueDay ? <ActivityIndicator color={c.text} /> : <Text style={styles.saveButtonText}>Save due date</Text>}
           </TouchableOpacity>
-          <Text style={styles.titleText}>Maintenance Setup</Text>
-        </View>
-        <Text style={styles.subtitleText}>
-          Decide how the monthly maintenance amount is set for this building.
-        </Text>
-
-        <View style={[styles.card, { marginBottom: 20 }]}>
-          <Text style={styles.inputLabel}>MAINTENANCE DUE DAY (SAME FOR EVERY FLAT)</Text>
-          <TextInput style={styles.textInput} placeholder="e.g. 10" placeholderTextColor={c.textTertiary} keyboardType="number-pad" value={maintenanceDueDay} onChangeText={setMaintenanceDueDay} />
-          <Text style={styles.helperText}>Residents in this building will all see this same monthly due date.</Text>
-          <TouchableOpacity style={styles.saveButton} onPress={saveMaintenanceDueDay} disabled={savingDueDay}>
-            {savingDueDay ? <ActivityIndicator color={c.text} /> : <Text style={styles.saveButtonText}>Save Due Date</Text>}
-          </TouchableOpacity>
         </View>
 
-        {/* Mode Toggle */}
+        <Text style={styles.sectionLabel}>MONTHLY AMOUNT</Text>
         <View style={styles.modeToggleRow}>
           <TouchableOpacity
             style={[styles.modeOption, mode === 'same' && styles.modeOptionSelected]}
@@ -253,11 +255,6 @@ export default function MaintenanceSetupScreen({ navigation }) {
               value={uniformAmount}
               onChangeText={setUniformAmount}
             />
-            <Text style={styles.helperText}>
-              This will apply to all {flats.length} flat{flats.length === 1 ? '' : 's'} in this
-              building and overwrite any per-flat amounts previously set.
-            </Text>
-
             <TouchableOpacity
               style={styles.saveButton}
               onPress={handleSaveSameForAll}
@@ -272,11 +269,6 @@ export default function MaintenanceSetupScreen({ navigation }) {
           </View>
         ) : (
           <View style={styles.card}>
-            <Text style={styles.helperText}>
-              Set an amount for each flat individually. Leave a flat blank to keep its current
-              amount unchanged.
-            </Text>
-
             {flats.length === 0 ? (
               <Text style={styles.emptyText}>No flats found for this building.</Text>
             ) : (
@@ -328,35 +320,31 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 40,
   },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 6,
+  dueDateCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 22,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: 24,
   },
-  backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 4,
-  },
-  titleText: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: colors.text,
-    letterSpacing: -0.4,
-  },
-  subtitleText: {
-    fontSize: 13,
-    color: colors.textSecondary,
-    marginBottom: 20,
-    marginLeft: 4,
-  },
+  dueDateHeading: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 18 },
+  dueDateIcon: { width: 42, height: 42, borderRadius: 14, backgroundColor: colors.accentSoft, justifyContent: 'center', alignItems: 'center' },
+  cardTitle: { fontSize: 15, fontWeight: '700', color: colors.text, marginBottom: 12 },
+  dueDateValue: { fontSize: 13, color: colors.textSecondary, marginTop: 2 },
+  dayGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 18 },
+  dayButton: { width: '12.1%', aspectRatio: 1, borderRadius: 10, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.surfaceMuted, borderWidth: 1, borderColor: colors.border },
+  dayButtonSelected: { backgroundColor: colors.accent, borderColor: colors.accent },
+  dayButtonText: { color: colors.textSecondary, fontSize: 12, fontWeight: '700' },
+  dayButtonTextSelected: { color: colors.text },
+  sectionLabel: { color: colors.textTertiary, fontSize: 11, fontWeight: '800', letterSpacing: 1, marginBottom: 10 },
   modeToggleRow: {
     flexDirection: 'row',
     gap: 10,
-    marginBottom: 20,
+    marginBottom: 16,
+    backgroundColor: colors.surfaceMuted,
+    padding: 4,
+    borderRadius: 16,
   },
   modeOption: {
     flex: 1,
@@ -364,11 +352,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    height: 48,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    height: 46,
+    borderRadius: 12,
   },
   modeOptionSelected: {
     backgroundColor: colors.accent,
@@ -407,12 +392,6 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     marginBottom: 10,
   },
-  helperText: {
-    fontSize: 12,
-    color: colors.textTertiary,
-    lineHeight: 17,
-    marginBottom: 18,
-  },
   saveButton: {
     backgroundColor: colors.accent,
     borderRadius: 14,
@@ -420,6 +399,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  saveButtonDisabled: { opacity: 0.45 },
   saveButtonText: {
     fontSize: 15,
     fontWeight: '700',
@@ -429,7 +409,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
   flatLabel: {
     fontSize: 14,

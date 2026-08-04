@@ -58,7 +58,7 @@ function CommitteeStackNavigator() {
       <CommitteeStack.Screen name="Collections" component={CollectionsScreen} options={{ title: 'Collections' }} />
       <CommitteeStack.Screen name="ManageCommittee" component={ManageCommitteeScreen} options={{ title: 'Members' }} />
       <CommitteeStack.Screen name="PendingResidents" component={PendingResidentsScreen} options={{ title: 'Pending Approval' }} />
-      <CommitteeStack.Screen name="MaintenanceSetup" component={MaintenanceSetupScreen} />
+      <CommitteeStack.Screen name="MaintenanceSetup" component={MaintenanceSetupScreen} options={{ title: 'Maintenance Setup' }} />
     </CommitteeStack.Navigator>
   )
 }
