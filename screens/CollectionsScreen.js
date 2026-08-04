@@ -20,9 +20,10 @@ function monthLabel(month) {
   return new Intl.DateTimeFormat('en-IN', { month: 'long', year: 'numeric' }).format(new Date(`${month}T00:00:00`))
 }
 
-function dueDateLabel(month) {
+function dueDateLabel(month, dueDay) {
   const [year, monthNumber] = month.slice(0, 7).split('-').map(Number)
-  return new Intl.DateTimeFormat('en-IN', { month: 'short', day: 'numeric' }).format(new Date(year, monthNumber, 0))
+  const lastDay = new Date(year, monthNumber, 0).getDate()
+  return new Intl.DateTimeFormat('en-IN', { month: 'short', day: 'numeric' }).format(new Date(year, monthNumber - 1, Math.min(Number(dueDay) || lastDay, lastDay)))
 }
 
 function CollectionRing({ percentage, paidUnits, totalUnits }) {
@@ -242,6 +243,7 @@ export default function CollectionsScreen() {
   const { profile } = useAuth()
   const [rows, setRows] = useState([])
   const [buildingName, setBuildingName] = useState('Your building')
+  const [maintenanceDueDay, setMaintenanceDueDay] = useState(null)
   const [loading, setLoading] = useState(true)
   const [generating, setGenerating] = useState(false)
   const [error, setError] = useState('')
@@ -259,7 +261,7 @@ export default function CollectionsScreen() {
     const [flatsResult, duesResult, buildingResult] = await Promise.all([
       supabase.from('flats').select('id, flat_number, maintenance_amount, maintenance_payer').eq('building_id', profile.building_id).order('flat_number'),
       supabase.from('dues').select('*').eq('month', month).eq('building_id', profile.building_id),
-      supabase.from('buildings').select('name').eq('id', profile.building_id).maybeSingle(),
+      supabase.from('buildings').select('name, maintenance_due_day').eq('id', profile.building_id).maybeSingle(),
     ])
     const flatIds = (flatsResult.data || []).map(flat => flat.id)
     const residentsResult = flatIds.length
@@ -274,6 +276,7 @@ export default function CollectionsScreen() {
       })
     setRows((flatsResult.data || []).map(flat => ({ ...flat, residents: residentsByFlat.get(flat.id) || [], due: duesByFlat.get(flat.flat_number) || null })))
     setBuildingName(buildingResult.data?.name || 'Your building')
+    setMaintenanceDueDay(buildingResult.data?.maintenance_due_day || null)
     setLoading(false)
   }
 
@@ -437,7 +440,7 @@ export default function CollectionsScreen() {
           </View>
           <View style={styles.statusLine}>
             <View style={[styles.dot, { backgroundColor: '#4B5563' }]} />
-            <Text style={styles.dueText}>Due {dueDateLabel(month)}</Text>
+            <Text style={styles.dueText}>Due {dueDateLabel(month, maintenanceDueDay)}</Text>
           </View>
         </View>
       </View>

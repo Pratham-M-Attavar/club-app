@@ -144,6 +144,7 @@ export default function HomeScreen({ navigation }) {
     supabase
       .from('notices')
       .select('*')
+      .eq('building_id', profile.building_id)
       .order('created_at', { ascending: false })
       .limit(5)
       .then(({ data }) => {
@@ -453,7 +454,31 @@ export default function HomeScreen({ navigation }) {
   const rentAmountValue = rentPayment?.amount || flatInfo?.rent_amount || currentDue?.total || 0
   const formattedRentAmount = rentAmountValue ? `₹${Number(rentAmountValue).toLocaleString('en-IN')}` : '₹0'
 
-  const maintenanceTotal = currentDue?.total ?? currentDue?.maintenance ?? flatInfo?.maintenance_amount ?? 0
+  const maintenanceDueDay = Number(buildingInfo?.maintenance_due_day)
+  const maintenanceDueLabel = maintenanceDueDay
+    ? `on the ${maintenanceDueDay}${maintenanceDueDay === 1 || maintenanceDueDay === 21 || maintenanceDueDay === 31 ? 'st' : maintenanceDueDay === 2 || maintenanceDueDay === 22 ? 'nd' : maintenanceDueDay === 3 || maintenanceDueDay === 23 ? 'rd' : 'th'}`
+    : `in ${currentMonthName}`
+  const maintenanceDueDate = maintenanceDueDay
+    ? new Date(new Date().getFullYear(), new Date().getMonth(), maintenanceDueDay)
+    : null
+  const daysUntilMaintenanceDue = maintenanceDueDate ? Math.ceil((maintenanceDueDate - today) / 86400000) : null
+  const isMaintenanceDueWindow = daysUntilMaintenanceDue !== null && daysUntilMaintenanceDue <= 7
+  const maintenanceDueText = daysUntilMaintenanceDue === null || daysUntilMaintenanceDue > 7
+    ? 'Due soon'
+    : daysUntilMaintenanceDue > 0 ? `Due in ${daysUntilMaintenanceDue} day${daysUntilMaintenanceDue === 1 ? '' : 's'}`
+    : daysUntilMaintenanceDue === 0 ? 'Due today' : `${Math.abs(daysUntilMaintenanceDue)} day${Math.abs(daysUntilMaintenanceDue) === 1 ? '' : 's'} overdue`
+  const currentMonthPrefix = getCurrentMonthStr().slice(0, 7)
+  // Old paid rows can remain while the new cycle is being set up. They must
+  // not hide this month's due amount or countdown. A paid state is current
+  // only when the recorded payment happened in this calendar month.
+  const maintenancePaidThisMonth = currentDue?.status === 'paid'
+    && currentDue?.paid_at?.slice(0, 7) === currentMonthPrefix
+  const maintenanceDisplayStatus = currentDue?.status === 'submitted'
+    ? 'submitted'
+    : maintenancePaidThisMonth || (!isMaintenanceDueWindow && currentDue?.status === 'paid') ? 'paid' : 'due'
+  const maintenanceTotal = maintenanceDisplayStatus === 'due'
+    ? flatInfo?.maintenance_amount ?? currentDue?.total ?? currentDue?.maintenance ?? 0
+    : currentDue?.total ?? currentDue?.maintenance ?? flatInfo?.maintenance_amount ?? 0
   const formattedMaintenanceAmount = maintenanceTotal ? `₹${Number(maintenanceTotal).toLocaleString('en-IN')}` : '₹0'
 
   const openTickets = tickets.filter(t => t && t.status !== 'resolved' && t.status !== 'done')
@@ -553,16 +578,16 @@ export default function HomeScreen({ navigation }) {
             <View
               style={[
                 styles.dueBadge,
-                (isTenant ? rentDisplayStatus === 'paid' : currentDue?.status === 'paid') && { backgroundColor: c.successBg },
+                (isTenant ? rentDisplayStatus === 'paid' : maintenanceDisplayStatus === 'paid') && { backgroundColor: c.successBg },
               ]}
             >
               <Text
                 style={[
                   styles.dueBadgeText,
-                  (isTenant ? rentDisplayStatus === 'paid' : currentDue?.status === 'paid') && { color: c.success },
+                  (isTenant ? rentDisplayStatus === 'paid' : maintenanceDisplayStatus === 'paid') && { color: c.success },
                 ]}
               >
-                {isTenant ? rentDisplayStatus === 'paid' ? 'Paid' : rentDisplayStatus === 'submitted' ? 'Under Review' : rentCountdownText : currentDue?.status === 'paid' ? 'Paid' : currentDue?.status === 'submitted' ? 'Under Review' : 'Due Soon'}
+                {isTenant ? rentDisplayStatus === 'paid' ? 'Paid' : rentDisplayStatus === 'submitted' ? 'Under Review' : rentCountdownText : maintenanceDisplayStatus === 'paid' ? 'Paid' : maintenanceDisplayStatus === 'submitted' ? 'Under Review' : maintenanceDueText}
               </Text>
             </View>
           </View>
@@ -586,7 +611,7 @@ export default function HomeScreen({ navigation }) {
   {isTenant
     ? `Due ${flatInfo?.rent_due_day ? `on the ${flatInfo.rent_due_day}${flatInfo.rent_due_day === 1 || flatInfo.rent_due_day === 21 || flatInfo.rent_due_day === 31 ? 'st' : flatInfo.rent_due_day === 2 || flatInfo.rent_due_day === 22 ? 'nd' : flatInfo.rent_due_day === 3 || flatInfo.rent_due_day === 23 ? 'rd' : 'th'}` : currentMonthName} · Tap to pay via GPay / UPI`
     : viewerOwesMaintenance
-    ? `Due ${currentMonthName} · Tap to pay via GPay / UPI`
+    ? `Due ${maintenanceDueLabel} · Tap to pay via GPay / UPI`
     : `${counterpart?.full_name || 'Tenant'} is responsible this month`}
 </Text>
         </TouchableOpacity>

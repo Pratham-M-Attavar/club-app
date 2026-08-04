@@ -27,6 +27,8 @@ export default function MaintenanceSetupScreen({ navigation }) {
   const [mode, setMode] = useState('same')
 
   const [uniformAmount, setUniformAmount] = useState('')
+  const [maintenanceDueDay, setMaintenanceDueDay] = useState('')
+  const [savingDueDay, setSavingDueDay] = useState(false)
   const [flats, setFlats] = useState([])
   // Per-flat draft amounts, keyed by flat id, so typing doesn't
   // re-fetch or lose other rows' edits.
@@ -58,6 +60,13 @@ export default function MaintenanceSetupScreen({ navigation }) {
       })
     setFlatAmounts(draft)
 
+    const { data: building } = await supabase
+      .from('buildings')
+      .select('maintenance_due_day')
+      .eq('id', profile.building_id)
+      .maybeSingle()
+    setMaintenanceDueDay(building?.maintenance_due_day ? String(building.maintenance_due_day) : '')
+
     setLoading(false)
   }
   function getCurrentMonthStr() {
@@ -68,6 +77,22 @@ export default function MaintenanceSetupScreen({ navigation }) {
   }
   function updateFlatAmount(flatId, value) {
     setFlatAmounts(prev => ({ ...prev, [flatId]: value }))
+  }
+
+  async function saveMaintenanceDueDay() {
+    const day = parseInt(maintenanceDueDay, 10)
+    if (!Number.isInteger(day) || day < 1 || day > 31) {
+      Alert.alert('Invalid Due Date', 'Enter a day from 1 to 31.')
+      return
+    }
+    setSavingDueDay(true)
+    const { error } = await supabase
+      .from('buildings')
+      .update({ maintenance_due_day: day })
+      .eq('id', profile.building_id)
+    setSavingDueDay(false)
+    if (error) return Alert.alert('Could Not Save Due Date', error.message)
+    Alert.alert('Saved', `Maintenance will be due on the ${day}${day === 1 || day === 21 || day === 31 ? 'st' : day === 2 || day === 22 ? 'nd' : day === 3 || day === 23 ? 'rd' : 'th'} of every month.`)
   }
 
   // Update the active unpaid due before the flat's default. That way, a
@@ -174,6 +199,15 @@ export default function MaintenanceSetupScreen({ navigation }) {
         <Text style={styles.subtitleText}>
           Decide how the monthly maintenance amount is set for this building.
         </Text>
+
+        <View style={[styles.card, { marginBottom: 20 }]}>
+          <Text style={styles.inputLabel}>MAINTENANCE DUE DAY (SAME FOR EVERY FLAT)</Text>
+          <TextInput style={styles.textInput} placeholder="e.g. 10" placeholderTextColor={c.textTertiary} keyboardType="number-pad" value={maintenanceDueDay} onChangeText={setMaintenanceDueDay} />
+          <Text style={styles.helperText}>Residents in this building will all see this same monthly due date.</Text>
+          <TouchableOpacity style={styles.saveButton} onPress={saveMaintenanceDueDay} disabled={savingDueDay}>
+            {savingDueDay ? <ActivityIndicator color={c.text} /> : <Text style={styles.saveButtonText}>Save Due Date</Text>}
+          </TouchableOpacity>
+        </View>
 
         {/* Mode Toggle */}
         <View style={styles.modeToggleRow}>

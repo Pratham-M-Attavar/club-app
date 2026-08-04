@@ -32,6 +32,7 @@ export default function VendorBookingsScreen() {
       .from('vendor_bookings')
       .select('*, vendors(category)')
       .eq('building_id', profile.building_id)
+      .eq('flat_number', profile.flat_number)
       .order('created_at', { ascending: false })
       .limit(9)
       .then(({ data }) => {
@@ -89,7 +90,7 @@ export default function VendorBookingsScreen() {
   return (
     <ScrollView style={styles.page} contentContainerStyle={styles.contentContainer}>
       <Text style={styles.title}>Vendor Bookings</Text>
-      <Text style={styles.sub}>Everyone in the building can see requested services and their status.</Text>
+      <Text style={styles.sub}>Bookings for your flat and their current status.</Text>
 
       {bookings.length === 0 && <Text style={styles.muted}>No bookings yet.</Text>}
 
@@ -103,7 +104,7 @@ export default function VendorBookingsScreen() {
             <View style={styles.cardTopRow}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.cardTitle}>
-                  {isMine ? 'You booked a' : `Flat ${b.flat_number} booked a`} {categoryLabel} vendor
+                  {isMine ? 'You booked a' : 'Your flat booked a'} {categoryLabel} vendor
                 </Text>
                 <Text style={styles.cardMeta}>
                   {b.slot_time
