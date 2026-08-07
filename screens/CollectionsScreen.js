@@ -7,7 +7,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 import { colors, spacing, radius, shadow } from '../lib/theme'
 import { dueDateForMonth, getCurrentMonthStr } from '../lib/format'
-
+import { useNavigation } from '@react-navigation/native'
 function currentMonthStr() {
   return getCurrentMonthStr()
 }
@@ -239,8 +239,9 @@ function CollectionTrend({ points }) {
   )
 }
 
-export default function CollectionsScreen({ navigation }) {
+export default function CollectionsScreen() {
   const { profile } = useAuth()
+  const navigation = useNavigation()
   const [rows, setRows] = useState([])
   const [buildingName, setBuildingName] = useState('Your building')
   const [maintenanceDueDay, setMaintenanceDueDay] = useState(null)
@@ -433,10 +434,9 @@ export default function CollectionsScreen({ navigation }) {
           <Text style={styles.title}>Collection</Text>
           <Text style={styles.subtitle}>{buildingName} · {monthLabel(month)}</Text>
         </View>
-        <TouchableOpacity style={styles.historyButton} onPress={() => navigation.navigate('CollectionHistory')}>
-          <Ionicons name="time-outline" size={17} color={colors.success} />
-          <Text style={styles.historyButtonText}>History</Text>
-        </TouchableOpacity>
+        <TouchableOpacity style={styles.headerIcon} onPress={() => navigation.navigate('CollectionHistory')}>
+  <Ionicons name="time-outline" size={18} color={colors.success} />
+</TouchableOpacity>
       </View>
 
       <View style={[styles.card, styles.summaryCard]}>
@@ -519,16 +519,15 @@ export default function CollectionsScreen({ navigation }) {
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: colors.bg },
   content: {
-  paddingHorizontal: spacing.xl,
-  paddingBottom: spacing.xxxl,
-},
+    paddingHorizontal: spacing.xl,
+    paddingBottom: spacing.xxxl,
+  },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg },
   loadingText: { color: colors.textSecondary, marginTop: 10 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing.sm, marginBottom: spacing.xl },
   title: { color: colors.text, fontSize: 28, fontWeight: '800', letterSpacing: -0.7 },
   subtitle: { color: colors.textSecondary, marginTop: 4, fontSize: 13 },
-  historyButton: { height: 38, paddingHorizontal: 12, borderRadius: 19, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: colors.successBg, borderWidth: 1, borderColor: 'rgba(16,185,129,0.28)' },
-  historyButtonText: { color: colors.success, fontSize: 12, fontWeight: '800' },
+  headerIcon: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.successBg, borderWidth: 1, borderColor: 'rgba(16,185,129,0.28)' },
   card: { backgroundColor: colors.surface, borderRadius: radius.xl, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border, ...shadow.card },
   summaryCard: { flexDirection: 'row', alignItems: 'center', padding: 16, marginBottom: spacing.xl },
   ringContainer: { width: 132, height: 132, alignItems: 'center', justifyContent: 'center' },

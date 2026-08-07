@@ -15,7 +15,7 @@ import { useAuth } from '../lib/AuthContext'
 import { colors } from '../lib/theme'
 import { supabase } from '../lib/supabase'
 
-const DUE_DAYS = Array.from({ length: 31 }, (_, index) => index + 1)
+const DUE_DAYS = Array.from({ length: 28 }, (_, index) => index + 1)
 
 export default function MaintenanceSetupScreen() {
   const { profile } = useAuth()
@@ -84,8 +84,8 @@ export default function MaintenanceSetupScreen() {
 
   async function saveMaintenanceDueDay() {
     const day = parseInt(maintenanceDueDay, 10)
-    if (!Number.isInteger(day) || day < 1 || day > 31) {
-      Alert.alert('Invalid Due Date', 'Enter a day from 1 to 31.')
+    if (!Number.isInteger(day) || day < 1 || day > 28) {
+      Alert.alert('Invalid Due Date', 'Enter a day from 1 to 28.')
       return
     }
     setSavingDueDay(true)

@@ -35,6 +35,44 @@ const STATUS = {
   pending: { label: 'Pending', color: colors.warning, bg: colors.warningBg, icon: 'alert-circle-outline' },
 }
 
+function CollectionRing({ percentage, size = 104 }) {
+  const dotCount = 60
+  const totalArc = 270
+  const startAngle = 135
+  const filledCount = Math.round(Math.max(0, Math.min(1, percentage)) * dotCount)
+  const ringRadius = size / 2 - 10
+  const center = size / 2
+
+  return (
+    <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
+      {Array.from({ length: dotCount }, (_, index) => {
+        const angle = startAngle + (index / (dotCount - 1)) * totalArc
+        const radians = (angle * Math.PI) / 180
+        const isFilled = index < filledCount
+
+        return (
+          <View
+            key={index}
+            style={{
+              position: 'absolute',
+              width: 7,
+              height: 7,
+              borderRadius: 3.5,
+              backgroundColor: isFilled ? colors.success : 'rgba(255,255,255,0.08)',
+              left: center + ringRadius * Math.cos(radians) - 3.5,
+              top: center + ringRadius * Math.sin(radians) - 3.5,
+            }}
+          />
+        )
+      })}
+      <View style={{ alignItems: 'center', justifyContent: 'center' }}>
+        <Text style={styles.progressValue}>{Math.round(percentage * 100)}%</Text>
+        <Text style={styles.progressCaption}>Collected</Text>
+      </View>
+    </View>
+  )
+}
+
 export default function CollectionHistoryScreen() {
   const { profile } = useAuth()
   const months = useMemo(() => previousMonths(), [])
@@ -65,9 +103,9 @@ export default function CollectionHistoryScreen() {
         ? await supabase.from('profiles').select('flat_id, full_name').in('flat_id', flatIds)
         : { data: [] }
       const names = new Map()
-      ;(residentsResult.data || []).forEach(resident => {
-        if (!names.has(resident.flat_id) && resident.full_name) names.set(resident.flat_id, resident.full_name)
-      })
+        ; (residentsResult.data || []).forEach(resident => {
+          if (!names.has(resident.flat_id) && resident.full_name) names.set(resident.flat_id, resident.full_name)
+        })
       setFlats(flatRows)
       setDues(duesResult.data || [])
       setResidentsByFlat(names)
@@ -122,7 +160,7 @@ export default function CollectionHistoryScreen() {
         </View>
 
         <View style={styles.progressCard}>
-          <View style={styles.progressRing}><Text style={styles.progressValue}>{summary.rate}%</Text><Text style={styles.progressCaption}>Collected</Text></View>
+          <CollectionRing percentage={summary.rate / 100} />
           <View style={styles.progressDetails}>
             <ProgressLine label="Paid flats" count={summary.paidCount} total={historyRows.length} color={colors.success} />
             <ProgressLine label="Pending" count={summary.pending} total={historyRows.length} color={colors.warning} />
@@ -168,7 +206,7 @@ const styles = StyleSheet.create({
   monthScroller: { gap: 8, paddingRight: 20, marginBottom: 22 }, monthChip: { paddingHorizontal: 13, paddingVertical: 9, borderRadius: radius.pill, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }, monthChipActive: { backgroundColor: colors.successBg, borderColor: colors.success }, monthChipText: { color: colors.textSecondary, fontSize: 12, fontWeight: '700' }, monthChipTextActive: { color: colors.success },
   summaryHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }, sectionLabel: { color: colors.textTertiary, fontSize: 10.5, fontWeight: '800', letterSpacing: 0.9, marginTop: 4, marginBottom: 10 }, rateText: { color: colors.success, fontSize: 12, fontWeight: '800', marginBottom: 10 },
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 20 }, statCard: { width: '48.5%', backgroundColor: colors.surface, borderRadius: 16, padding: 14, borderWidth: 1, borderColor: colors.border }, statLabel: { color: colors.textTertiary, fontSize: 9.5, fontWeight: '800', letterSpacing: 0.6 }, statValue: { fontSize: 20, fontWeight: '800', marginTop: 7, letterSpacing: -0.4 }, statSub: { color: colors.textSecondary, fontSize: 11, marginTop: 5 },
-  progressCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 20, padding: 16, marginBottom: 20 }, progressRing: { width: 104, height: 104, borderRadius: 52, borderWidth: 9, borderColor: colors.success, alignItems: 'center', justifyContent: 'center' }, progressValue: { color: colors.text, fontSize: 22, fontWeight: '800' }, progressCaption: { color: colors.textTertiary, fontSize: 10, marginTop: 1 }, progressDetails: { flex: 1, marginLeft: 18, gap: 13 }, progressLine: {}, progressLineHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5 }, progressLineLabel: { color: colors.textSecondary, fontSize: 12 }, progressLineValue: { fontSize: 13, fontWeight: '800' }, progressTrack: { height: 4, borderRadius: 3, backgroundColor: colors.border, overflow: 'hidden' }, progressFill: { height: '100%', borderRadius: 3 },
+  progressCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 20, padding: 16, marginBottom: 20 }, progressValue: { color: colors.text, fontSize: 22, fontWeight: '800' }, progressCaption: { color: colors.textTertiary, fontSize: 10, marginTop: 1 }, progressDetails: { flex: 1, marginLeft: 18, gap: 13 }, progressLine: {}, progressLineHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5 }, progressLineLabel: { color: colors.textSecondary, fontSize: 12 }, progressLineValue: { fontSize: 13, fontWeight: '800' }, progressTrack: { height: 4, borderRadius: 3, backgroundColor: colors.border, overflow: 'hidden' }, progressFill: { height: '100%', borderRadius: 3 },
   chartCard: { height: 146, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 5, padding: 14, paddingBottom: 10, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 18, marginBottom: 20 }, barWrap: { flex: 1, alignItems: 'center', height: '100%' }, barTrack: { flex: 1, width: 8, justifyContent: 'flex-end', backgroundColor: colors.surfaceMuted, borderRadius: 5, overflow: 'hidden' }, bar: { width: '100%', backgroundColor: colors.success, borderRadius: 5 }, barLabel: { color: colors.textTertiary, fontSize: 9, marginTop: 7 },
   searchInput: { color: colors.text, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, paddingHorizontal: 13, paddingVertical: 12, fontSize: 13.5, marginBottom: 10 }, filterRow: { gap: 8, marginBottom: 14 }, filterChip: { paddingVertical: 7, paddingHorizontal: 12, borderRadius: radius.pill, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }, filterChipActive: { backgroundColor: colors.accent, borderColor: colors.accent }, filterChipText: { color: colors.textSecondary, fontSize: 12, fontWeight: '700' }, filterChipTextActive: { color: colors.text },
   recordCard: { minHeight: 72, flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: radius.lg, marginBottom: 9, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }, flatBadge: { width: 42, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center' }, flatBadgeText: { fontSize: 11, fontWeight: '800' }, recordInfo: { flex: 1, marginLeft: 11 }, resident: { color: colors.text, fontSize: 14, fontWeight: '700' }, recordMeta: { color: colors.textTertiary, fontSize: 11, marginTop: 3 }, recordRight: { alignItems: 'flex-end', marginLeft: 8 }, recordAmount: { color: colors.text, fontSize: 14, fontWeight: '800' }, statusBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 5, paddingVertical: 3, paddingHorizontal: 7, borderRadius: 7 }, statusText: { fontSize: 10, fontWeight: '800' }, empty: { color: colors.textSecondary, textAlign: 'center', paddingVertical: 30 },
