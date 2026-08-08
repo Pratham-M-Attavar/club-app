@@ -32,14 +32,14 @@ export default function TicketsScreen() {
   const [submitting, setSubmitting] = useState(false)
 
   const CATEGORIES = [
-    'Electrical',
-    'Plumbing',
-    'HVAC',
-    'Mechanical',
-    'Cleaning',
-    'Security',
-    'Other',
-  ]
+  'Electrical',
+  'Plumbing',
+  'Cleaning',
+  'Security',
+  'Scrap',
+  'Housekeeping',
+  'Other',
+]
 
   async function loadTickets() {
     setLoading(true)
