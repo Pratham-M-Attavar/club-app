@@ -10,6 +10,7 @@ import {
   Platform,
   Animated,
   ActivityIndicator,
+  Modal,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
@@ -275,14 +276,19 @@ function SignUpWizard({ googleUser }) {
   const [fullName, setFullName] = useState(
     googleUser?.user_metadata?.full_name || googleUser?.user_metadata?.name || ''
   )
+  const [phone, setPhone] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
+  // Apartment request modal (fallback when building isn't listed)
+  const [showApartmentRequestModal, setShowApartmentRequestModal] = useState(false)
+
   // Focus states
   const [searchFocused, setSearchFocused] = useState(false)
   const [nameFocused, setNameFocused] = useState(false)
+  const [phoneFocused, setPhoneFocused] = useState(false)
   const [emailFocused, setEmailFocused] = useState(false)
   const [passFocused, setPassFocused] = useState(false)
 
@@ -372,6 +378,7 @@ function SignUpWizard({ googleUser }) {
     const { error: profileError } = await supabase.from('profiles').insert({
       id: userId,
       full_name: fullName,
+      phone: phone.trim(),
       flat_number: selectedFlat.flat_number,
       flat_type: selectedFlat.flat_type,
       ownership,
@@ -396,6 +403,10 @@ function SignUpWizard({ googleUser }) {
   async function handleSubmit() {
     if (!fullName.trim()) {
       setError('Please enter your full name.')
+      return
+    }
+    if (!phone.trim()) {
+      setError('Please enter your phone number.')
       return
     }
     if (!googleUser && (!email.trim() || !password)) {
@@ -538,9 +549,14 @@ function SignUpWizard({ googleUser }) {
               {query.trim().length >= 2 && !searching && buildingResults.length === 0 && (
                 <View style={styles.emptyStateBox}>
                   <Ionicons name="alert-circle-outline" size={24} color={colors.textTertiary} />
-                  <Text style={styles.helpText}>
-                    Can't find your building? It might not be onboarded yet. Please contact your society committee.
+                  <Text style={[styles.helpText, { color: colors.textSecondary, fontSize: 13.5 }]}>
+                    Can't find your building? It might not be onboarded yet.
                   </Text>
+                  <TouchableOpacity onPress={() => setShowApartmentRequestModal(true)} style={{ marginTop: 8 }}>
+                    <Text style={{ color: colors.accent, fontWeight: '700', fontSize: 13 }}>
+                      Register your apartment
+                    </Text>
+                  </TouchableOpacity>
                 </View>
               )}
             </ScrollView>
@@ -648,6 +664,20 @@ function SignUpWizard({ googleUser }) {
               />
             </View>
 
+            <View style={[styles.inputWrapper, phoneFocused && styles.inputFocused]}>
+              <Ionicons name="call-outline" size={18} color={phoneFocused ? colors.accent : colors.textTertiary} style={styles.inputIcon} />
+              <TextInput
+                style={styles.inputField}
+                placeholder="Phone number"
+                placeholderTextColor={colors.placeholder}
+                value={phone}
+                onChangeText={setPhone}
+                onFocus={() => setPhoneFocused(true)}
+                onBlur={() => setPhoneFocused(false)}
+                keyboardType="phone-pad"
+              />
+            </View>
+
             {!googleUser && (
               <>
                 <View style={[styles.inputWrapper, emailFocused && styles.inputFocused]}>
@@ -699,6 +729,11 @@ function SignUpWizard({ googleUser }) {
           </View>
         )}
       </Animated.View>
+
+      <ApartmentRequestModal
+        visible={showApartmentRequestModal}
+        onClose={() => setShowApartmentRequestModal(false)}
+      />
     </View>
   )
 }
@@ -709,6 +744,155 @@ function BackLink({ onPress, label = 'Back to previous step' }) {
       <Ionicons name="arrow-back" size={14} color={colors.textSecondary} />
       <Text style={styles.backButtonText}>{label}</Text>
     </TouchableOpacity>
+  )
+}
+
+// ============ APARTMENT REQUEST MODAL ============
+function ApartmentRequestModal({ visible, onClose }) {
+  const [apartmentName, setApartmentName] = useState('')
+  const [city, setCity] = useState('')
+  const [flatCount, setFlatCount] = useState('')
+  const [phone, setPhone] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [submitted, setSubmitted] = useState(false)
+  const [error, setError] = useState('')
+
+  async function handleSubmit() {
+    if (!apartmentName.trim() || !city.trim() || !flatCount.trim() || !phone.trim()) {
+      setError('Please fill in all fields.')
+      return
+    }
+    setError('')
+    setSubmitting(true)
+
+    const { error: insertError } = await supabase.from('apartment_requests').insert({
+      apartment_name: apartmentName.trim(),
+      city: city.trim(),
+      approx_flat_count: flatCount.trim(),
+      phone: phone.trim(),
+    })
+
+    setSubmitting(false)
+    if (insertError) {
+      setError(insertError.message)
+      return
+    }
+    setSubmitted(true)
+  }
+
+  function handleClose() {
+    // reset state so next open is fresh
+    setApartmentName('')
+    setCity('')
+    setFlatCount('')
+    setPhone('')
+    setSubmitted(false)
+    setError('')
+    onClose()
+  }
+
+  return (
+    <Modal visible={visible} transparent animationType="slide">
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      >
+        <View style={styles.modalOverlayApt}>
+          <TouchableOpacity style={styles.modalBackdropApt} onPress={handleClose} />
+          <View style={styles.modalSheetApt}>
+            <View style={styles.sheetHandleApt} />
+
+            <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+              {submitted ? (
+                <View style={{ alignItems: 'center', paddingVertical: 20 }}>
+                  <Ionicons name="checkmark-circle" size={48} color={colors.accent} />
+                  <Text style={[styles.stepTitle, { marginTop: 12, textAlign: 'center' }]}>
+                    Thanks! We've got your request.
+                  </Text>
+                  <Text style={[styles.helpText, { marginTop: 6 }]}>
+                    Our team will review your details and call you shortly to get your apartment set up.
+                  </Text>
+                  <TouchableOpacity onPress={handleClose} style={{ marginTop: 20 }}>
+                    <Text style={{ color: colors.accent, fontWeight: '700' }}>Got it</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <>
+                  <Text style={styles.stepTitle}>Register Your Apartment</Text>
+                  <Text style={[styles.helpText, { textAlign: 'left', marginBottom: 16 }]}>
+                    We'll review your details and get your building set up.
+                  </Text>
+
+                  <View style={styles.inputWrapper}>
+                    <Ionicons name="business-outline" size={18} color={colors.textTertiary} style={styles.inputIcon} />
+                    <TextInput
+                      style={styles.inputField}
+                      placeholder="Apartment / Society name"
+                      placeholderTextColor={colors.placeholder}
+                      value={apartmentName}
+                      onChangeText={setApartmentName}
+                    />
+                  </View>
+
+                  <View style={styles.inputWrapper}>
+                    <Ionicons name="location-outline" size={18} color={colors.textTertiary} style={styles.inputIcon} />
+                    <TextInput
+                      style={styles.inputField}
+                      placeholder="City"
+                      placeholderTextColor={colors.placeholder}
+                      value={city}
+                      onChangeText={setCity}
+                    />
+                  </View>
+
+                  <View style={styles.inputWrapper}>
+                    <Ionicons name="grid-outline" size={18} color={colors.textTertiary} style={styles.inputIcon} />
+                    <TextInput
+                      style={styles.inputField}
+                      placeholder="Approx. number of flats"
+                      placeholderTextColor={colors.placeholder}
+                      value={flatCount}
+                      onChangeText={setFlatCount}
+                      keyboardType="numeric"
+                    />
+                  </View>
+
+                  <View style={styles.inputWrapper}>
+                    <Ionicons name="call-outline" size={18} color={colors.textTertiary} style={styles.inputIcon} />
+                    <TextInput
+                      style={styles.inputField}
+                      placeholder="Phone number"
+                      placeholderTextColor={colors.placeholder}
+                      value={phone}
+                      onChangeText={setPhone}
+                      keyboardType="phone-pad"
+                    />
+                  </View>
+                  <Text style={[styles.helpText, { textAlign: 'left', fontSize: 11, marginTop: -6, marginBottom: 12 }]}>
+                    We'll call you to verify.
+                  </Text>
+
+                  {error ? (
+                    <View style={styles.errorBox}>
+                      <Ionicons name="alert-circle-outline" size={16} color={colors.danger} />
+                      <Text style={styles.errorText}>{error}</Text>
+                    </View>
+                  ) : null}
+
+                  <Button
+                    label={submitting ? 'Submitting…' : 'Submit Request'}
+                    onPress={handleSubmit}
+                    loading={submitting}
+                    style={styles.primaryButton}
+                  />
+                </>
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
   )
 }
 
@@ -1064,4 +1248,30 @@ const styles = StyleSheet.create({
   },
   googleOnboardingText: { fontSize: 13, color: colors.text, fontWeight: '600' },
   googleOnboardingLink: { fontSize: 12, color: colors.accent, marginTop: 2, fontWeight: '600' },
+
+  // Apartment Request Modal
+  modalOverlayApt: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.6)',
+  },
+  modalBackdropApt: {
+    flex: 1,
+  },
+  modalSheetApt: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  sheetHandleApt: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.borderStrong,
+    alignSelf: 'center',
+    marginBottom: 16,
+  },
 })
