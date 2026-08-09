@@ -79,6 +79,8 @@ export default function LoginScreen({ onboardingUser }) {
           <View style={styles.card}>
             {onboardingUser ? (
               <SignUpWizard googleUser={onboardingUser} />
+            ) : mode === 'forgot-password' ? (
+              <ForgotPasswordWizard onBackToSignIn={() => switchMode('signin')} />
             ) : (
               <>
                 {/* Segmented Tab Switcher */}
@@ -116,7 +118,7 @@ export default function LoginScreen({ onboardingUser }) {
 
                 {/* Form Content with Fade Animation */}
                 <Animated.View style={{ opacity: fadeAnim }}>
-                  {mode === 'signin' ? <SignInForm /> : <SignUpWizard />}
+                  {mode === 'signin' ? <SignInForm onForgotPassword={() => switchMode('forgot-password')} /> : <SignUpWizard />}
                 </Animated.View>
               </>
             )}
@@ -128,7 +130,7 @@ export default function LoginScreen({ onboardingUser }) {
 }
 
 // ============ SIGN IN FORM ============
-function SignInForm() {
+function SignInForm({ onForgotPassword }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -219,6 +221,10 @@ function SignInForm() {
           <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={18} color={colors.textTertiary} />
         </TouchableOpacity>
       </View>
+
+      <TouchableOpacity onPress={onForgotPassword} style={{ alignSelf: 'flex-end', marginBottom: spacing.md }}>
+        <Text style={{ color: colors.accent, fontSize: 12.5, fontWeight: '600' }}>Forgot password?</Text>
+      </TouchableOpacity>
 
       {error ? (
         <View style={styles.errorBox}>
@@ -744,6 +750,91 @@ function BackLink({ onPress, label = 'Back to previous step' }) {
       <Ionicons name="arrow-back" size={14} color={colors.textSecondary} />
       <Text style={styles.backButtonText}>{label}</Text>
     </TouchableOpacity>
+  )
+}
+
+// ============ FORGOT PASSWORD (NATIVE RESET) ============
+function ForgotPasswordWizard({ onBackToSignIn }) {
+  const [email, setEmail] = useState('')
+  const [emailFocused, setEmailFocused] = useState(false)
+  const [error, setError] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [sent, setSent] = useState(false)
+
+  async function handleSendReset() {
+    if (!email.trim()) {
+      setError('Please enter your email address.')
+      return
+    }
+    setError('')
+    setSubmitting(true)
+
+    const redirectTo = AuthSession.makeRedirectUri({ scheme: 'club-mobile', path: 'reset-password' })
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo })
+
+    setSubmitting(false)
+    if (resetError) {
+      setError(resetError.message)
+      return
+    }
+    setSent(true)
+  }
+
+  if (sent) {
+    return (
+      <View style={{ alignItems: 'center', paddingVertical: 20 }}>
+        <Ionicons name="mail-outline" size={48} color={colors.accent} />
+        <Text style={[styles.stepTitle, { marginTop: 12, textAlign: 'center' }]}>
+          Check your email
+        </Text>
+        <Text style={[styles.helpText, { marginTop: 6 }]}>
+          We've sent a password reset link to {email.trim()}. Tap the link to set a new password.
+        </Text>
+        <TouchableOpacity onPress={onBackToSignIn} style={{ marginTop: 20 }}>
+          <Text style={{ color: colors.accent, fontWeight: '700' }}>Back to Sign in</Text>
+        </TouchableOpacity>
+      </View>
+    )
+  }
+
+  return (
+    <View>
+      <Text style={styles.stepTitle}>Reset your password</Text>
+      <Text style={[styles.helpText, { textAlign: 'left', marginBottom: 16 }]}>
+        Enter the email you used to sign up. We'll send you a link to reset your password.
+      </Text>
+
+      <View style={[styles.inputWrapper, emailFocused && styles.inputFocused]}>
+        <Ionicons name="mail-outline" size={18} color={emailFocused ? colors.accent : colors.textTertiary} style={styles.inputIcon} />
+        <TextInput
+          style={styles.inputField}
+          placeholder="Email address"
+          placeholderTextColor={colors.placeholder}
+          value={email}
+          onChangeText={setEmail}
+          onFocus={() => setEmailFocused(true)}
+          onBlur={() => setEmailFocused(false)}
+          autoCapitalize="none"
+          keyboardType="email-address"
+        />
+      </View>
+
+      {error ? (
+        <View style={styles.errorBox}>
+          <Ionicons name="alert-circle-outline" size={16} color={colors.danger} />
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
+      ) : null}
+
+      <Button
+        label={submitting ? 'Sending…' : 'Send reset link'}
+        onPress={handleSendReset}
+        loading={submitting}
+        style={styles.primaryButton}
+      />
+
+      <BackLink onPress={onBackToSignIn} label="Back to Sign in" />
+    </View>
   )
 }
 

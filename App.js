@@ -1,3 +1,5 @@
+import { useEffect, useState, useRef } from 'react'
+import { Linking } from 'react-native'
 import { NavigationContainer, DarkTheme } from '@react-navigation/native'
 import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs'
 import { createNativeStackNavigator } from '@react-navigation/native-stack'
@@ -5,8 +7,10 @@ import { Ionicons } from '@expo/vector-icons'
 import { StatusBar } from 'expo-status-bar'
 import { AuthProvider, useAuth } from './lib/AuthContext'
 import { colors } from './lib/theme'
+import { supabase } from './lib/supabase'
 import LoginScreen from './screens/LoginScreen'
 import PendingApprovalScreen from './screens/PendingApprovalScreen'
+import ResetPasswordScreen from './screens/ResetPasswordScreen'
 import HomeScreen from './screens/HomeScreen'
 import PaymentHistoryScreen from './screens/PaymentHistoryScreen'
 import ServicesScreen from './screens/ServicesScreen'
@@ -190,8 +194,44 @@ function LoadingView({ message = 'Loading…' }) {
   )
 }
 
+// Parses tokens out of a Supabase auth redirect URL (handles both # fragment and ? query forms)
+function parseAuthParamsFromUrl(url) {
+  if (!url) return {}
+  const fragment = url.split('#')[1] || url.split('?')[1] || ''
+  const params = new URLSearchParams(fragment)
+  return {
+    access_token: params.get('access_token'),
+    refresh_token: params.get('refresh_token'),
+    type: params.get('type'),
+  }
+}
+
 function Root() {
   const { session, profile, loading } = useAuth()
+  const [passwordRecovery, setPasswordRecovery] = useState(false)
+  const handledInitialUrl = useRef(false)
+
+  useEffect(() => {
+    async function handleUrl(url) {
+      if (!url) return
+      const { access_token, refresh_token, type } = parseAuthParamsFromUrl(url)
+      if (type === 'recovery' && access_token && refresh_token) {
+        await supabase.auth.setSession({ access_token, refresh_token })
+        setPasswordRecovery(true)
+      }
+    }
+
+    // App opened fresh via the reset link (cold start)
+    if (!handledInitialUrl.current) {
+      handledInitialUrl.current = true
+      Linking.getInitialURL().then(handleUrl)
+    }
+
+    // App already open in background, link tapped
+    const subscription = Linking.addEventListener('url', ({ url }) => handleUrl(url))
+
+    return () => subscription.remove()
+  }, [])
 
   const navTheme = {
     ...DarkTheme,
@@ -206,6 +246,18 @@ function Root() {
   }
 
   if (loading) return <LoadingView />
+
+  // Password recovery takes priority over everything else once triggered
+  if (passwordRecovery) {
+    return (
+      <>
+        <StatusBar style="light" />
+        <NavigationContainer theme={navTheme}>
+          <ResetPasswordScreen onDone={() => setPasswordRecovery(false)} />
+        </NavigationContainer>
+      </>
+    )
+  }
 
   if (!session) {
     return (
