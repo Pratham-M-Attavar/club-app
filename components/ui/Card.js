@@ -1,15 +1,8 @@
 import { View, StyleSheet } from 'react-native'
-import {
-    colors,
-    spacing,
-    radius,
-    type,
-    shadow
-} from '../../lib/theme'
+import { useTheme, spacing, radius } from '../../lib/theme'
 
 export default function Card({ children, style, featured = false, dark = false, padded = true }) {
-  
-  const c = colors
+  const { colors: c, shadow } = useTheme()
 
   return (
     <View

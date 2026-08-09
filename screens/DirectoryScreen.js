@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet, Linking, Alert, Switch } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { supabase } from '../lib/supabase'
@@ -6,10 +6,12 @@ import { useAuth } from '../lib/AuthContext'
 import Screen from '../components/Screen'
 import Card from '../components/ui/Card'
 import EmptyState from '../components/ui/EmptyState'
-import { colors, spacing, type } from '../lib/theme'
+import { useTheme, spacing } from '../lib/theme'
 
 export default function DirectoryScreen({ navigation }) {
   const { profile } = useAuth()
+  const { colors, type } = useTheme()
+  const styles = useMemo(() => getStyles(colors, type), [colors, type])
   const [residents, setResidents] = useState([])
   const [showPhone, setShowPhone] = useState(!!profile?.show_in_directory)
   const [refreshing, setRefreshing] = useState(false)
@@ -77,20 +79,22 @@ export default function DirectoryScreen({ navigation }) {
   )
 }
 
-const styles = StyleSheet.create({
-  back: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: spacing.md },
-  backText: { fontSize: 14, fontWeight: '600', color: colors.accent },
-  title: { ...type.h1, color: colors.accent },
-  sub: { ...type.caption, marginBottom: spacing.lg },
-  optIn: { marginBottom: spacing.lg },
-  optInRow: { flexDirection: 'row', alignItems: 'center' },
-  optInTitle: { fontSize: 14, fontWeight: '700', color: colors.text },
-  optInSub: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
-  row: { flexDirection: 'row', alignItems: 'center' },
-  name: { fontSize: 14, fontWeight: '700', color: colors.text },
-  flat: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
-  callBtn: {
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: colors.successBg, alignItems: 'center', justifyContent: 'center',
-  },
-})
+function getStyles(colors, type) {
+  return StyleSheet.create({
+    back: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: spacing.md },
+    backText: { fontSize: 14, fontWeight: '600', color: colors.accent },
+    title: { ...type.h1, color: colors.accent },
+    sub: { ...type.caption, marginBottom: spacing.lg },
+    optIn: { marginBottom: spacing.lg },
+    optInRow: { flexDirection: 'row', alignItems: 'center' },
+    optInTitle: { fontSize: 14, fontWeight: '700', color: colors.text },
+    optInSub: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
+    row: { flexDirection: 'row', alignItems: 'center' },
+    name: { fontSize: 14, fontWeight: '700', color: colors.text },
+    flat: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
+    callBtn: {
+      width: 36, height: 36, borderRadius: 18,
+      backgroundColor: colors.successBg, alignItems: 'center', justifyContent: 'center',
+    },
+  })
+}

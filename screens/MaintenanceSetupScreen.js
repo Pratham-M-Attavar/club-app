@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   View,
   Text,
@@ -12,14 +12,15 @@ import {
 import { Ionicons } from '@expo/vector-icons'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useAuth } from '../lib/AuthContext'
-import { colors } from '../lib/theme'
+import { useTheme } from '../lib/theme'
 import { supabase } from '../lib/supabase'
 
 const DUE_DAYS = Array.from({ length: 28 }, (_, index) => index + 1)
 
 export default function MaintenanceSetupScreen() {
   const { profile } = useAuth()
-  const c = colors
+  const { colors: c } = useTheme()
+  const styles = useMemo(() => getStyles(c), [c])
 
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -305,7 +306,8 @@ export default function MaintenanceSetupScreen() {
   )
 }
 
-const styles = StyleSheet.create({
+function getStyles(colors) {
+  return StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.bg,
@@ -436,4 +438,5 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginVertical: 12,
   },
-})
+  })
+}

@@ -1,15 +1,17 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Alert, RefreshControl } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
-import { colors, spacing, radius, type } from '../lib/theme'
+import { useTheme, spacing, radius } from '../lib/theme'
 import Card from '../components/ui/Card'
 import Button from '../components/ui/Button'
 import EmptyState from '../components/ui/EmptyState'
 
 export default function PendingResidentsScreen() {
   const { profile, adminBuilding } = useAuth()
+  const { colors, type } = useTheme()
+  const styles = useMemo(() => getStyles(colors), [colors])
   const [pending, setPending] = useState([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -153,7 +155,8 @@ export default function PendingResidentsScreen() {
   )
 }
 
-const styles = StyleSheet.create({
+function getStyles(colors) {
+  return StyleSheet.create({
   page: { flex: 1, backgroundColor: colors.bg },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg },
   name: { fontSize: 16, fontWeight: '700', color: colors.text },
@@ -185,4 +188,5 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.warning,
   },
-})
+  })
+}

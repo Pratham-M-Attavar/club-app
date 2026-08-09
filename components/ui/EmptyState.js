@@ -1,15 +1,9 @@
 import { View, Text, StyleSheet } from 'react-native'
-
 import Button from './Button'
-import {
-    colors,
-    spacing,
-    radius,
-    type,
-    shadow
-} from '../../lib/theme'
+import { useTheme, spacing } from '../../lib/theme'
+
 export default function EmptyState({ title, subtitle, actionLabel, onAction }) {
-  
+  const { type } = useTheme()
 
   return (
     <View style={styles.wrap}>

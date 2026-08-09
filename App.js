@@ -1,12 +1,12 @@
 import { useEffect, useState, useRef } from 'react'
 import { Linking } from 'react-native'
-import { NavigationContainer, DarkTheme } from '@react-navigation/native'
+import { NavigationContainer, DarkTheme, DefaultTheme } from '@react-navigation/native'
 import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs'
 import { createNativeStackNavigator } from '@react-navigation/native-stack'
 import { Ionicons } from '@expo/vector-icons'
 import { StatusBar } from 'expo-status-bar'
 import { AuthProvider, useAuth } from './lib/AuthContext'
-import { colors } from './lib/theme'
+import { ThemeProvider, useTheme } from './lib/theme'
 import { supabase } from './lib/supabase'
 import LoginScreen from './screens/LoginScreen'
 import PendingApprovalScreen from './screens/PendingApprovalScreen'
@@ -35,9 +35,7 @@ const ServicesStack = createNativeStackNavigator()
 const HomeStack = createNativeStackNavigator()
 const RequestsStack = createNativeStackNavigator()
 
-function stackScreenOptions() {
-  const c = colors
-
+function stackScreenOptions(c) {
   return {
     headerStyle: { backgroundColor: c.bg },
     headerTintColor: c.text,
@@ -52,8 +50,9 @@ function stackScreenOptions() {
 }
 
 function CommitteeStackNavigator() {
+  const { colors: c } = useTheme()
   return (
-    <CommitteeStack.Navigator screenOptions={stackScreenOptions()}>
+    <CommitteeStack.Navigator screenOptions={stackScreenOptions(c)}>
       <CommitteeStack.Screen
         name="CommitteeMenu"
         component={CommitteeMenuScreen}
@@ -70,8 +69,9 @@ function CommitteeStackNavigator() {
 }
 
 function HomeStackNavigator() {
+  const { colors: c } = useTheme()
   return (
-    <HomeStack.Navigator screenOptions={stackScreenOptions()}>
+    <HomeStack.Navigator screenOptions={stackScreenOptions(c)}>
       <HomeStack.Screen name="HomeMain" component={HomeScreen} options={{ headerShown: false }} />
       <HomeStack.Screen name="PaymentHistory" component={PaymentHistoryScreen} options={{ title: 'Payment History' }} />
       <HomeStack.Screen name="Notices" component={NoticesScreen} options={{ title: 'Community Notices' }} />
@@ -80,8 +80,9 @@ function HomeStackNavigator() {
 }
 
 function ServicesStackNavigator() {
+  const { colors: c } = useTheme()
   return (
-    <ServicesStack.Navigator screenOptions={stackScreenOptions()}>
+    <ServicesStack.Navigator screenOptions={stackScreenOptions(c)}>
       <ServicesStack.Screen name="ServicesHome" component={ServicesScreen} options={{ headerShown: false }} />
       <ServicesStack.Screen
         name="VendorDetail"
@@ -96,8 +97,9 @@ function ServicesStackNavigator() {
 }
 
 function RequestsStackNavigator() {
+  const { colors: c } = useTheme()
   return (
-    <RequestsStack.Navigator screenOptions={stackScreenOptions()}>
+    <RequestsStack.Navigator screenOptions={stackScreenOptions(c)}>
       <RequestsStack.Screen name="RequestsMain" component={TicketsScreen} options={{ headerShown: false }} />
     </RequestsStack.Navigator>
   )
@@ -109,7 +111,7 @@ function TabIcon({ name, color, focused }) {
 
 function MainTabs() {
   const { isCommittee } = useAuth()
-  const c = colors
+  const { colors: c } = useTheme()
 
   return (
     <Tab.Navigator
@@ -185,7 +187,7 @@ function MainTabs() {
 }
 
 function LoadingView({ message = 'Loading…' }) {
-  const c = colors
+  const { colors: c } = useTheme()
   return (
     <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: c.bg }}>
       <ActivityIndicator color={c.accent} size="large" />
@@ -208,6 +210,7 @@ function parseAuthParamsFromUrl(url) {
 
 function Root() {
   const { session, profile, loading } = useAuth()
+  const { colors, mode } = useTheme()
   const [passwordRecovery, setPasswordRecovery] = useState(false)
   const handledInitialUrl = useRef(false)
 
@@ -233,10 +236,12 @@ function Root() {
     return () => subscription.remove()
   }, [])
 
+  // Base react-navigation theme follows our light/dark mode, tinted with our colors
+  const baseNavTheme = mode === 'dark' ? DarkTheme : DefaultTheme
   const navTheme = {
-    ...DarkTheme,
+    ...baseNavTheme,
     colors: {
-      ...DarkTheme.colors,
+      ...baseNavTheme.colors,
       primary: colors.accent,
       background: colors.bg,
       card: colors.surface,
@@ -244,6 +249,7 @@ function Root() {
       border: colors.border,
     },
   }
+  const statusBarStyle = mode === 'dark' ? 'light' : 'dark'
 
   if (loading) return <LoadingView />
 
@@ -251,7 +257,7 @@ function Root() {
   if (passwordRecovery) {
     return (
       <>
-        <StatusBar style="light" />
+        <StatusBar style={statusBarStyle} />
         <NavigationContainer theme={navTheme}>
           <ResetPasswordScreen onDone={() => setPasswordRecovery(false)} />
         </NavigationContainer>
@@ -262,7 +268,7 @@ function Root() {
   if (!session) {
     return (
       <>
-        <StatusBar style="light" />
+        <StatusBar style={statusBarStyle} />
         <NavigationContainer theme={navTheme}>
           <LoginScreen />
         </NavigationContainer>
@@ -280,7 +286,7 @@ function Root() {
   if (profile.approval_status !== 'approved') {
     return (
       <>
-        <StatusBar style="light" />
+        <StatusBar style={statusBarStyle} />
         <NavigationContainer theme={navTheme}>
           <PendingApprovalScreen />
         </NavigationContainer>
@@ -290,7 +296,7 @@ function Root() {
 
   return (
     <>
-      <StatusBar style="light" />
+      <StatusBar style={statusBarStyle} />
       <NavigationContainer theme={navTheme}>
         <MainTabs />
       </NavigationContainer>
@@ -300,8 +306,10 @@ function Root() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <Root />
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <Root />
+      </AuthProvider>
+    </ThemeProvider>
   )
 }

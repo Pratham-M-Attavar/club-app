@@ -1,11 +1,13 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator } from 'react-native'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
-import { colors, spacing, radius } from '../lib/theme'
+import { useTheme, spacing, radius } from '../lib/theme'
 
 export default function ManageCommitteeScreen() {
   const { profile, isAdmin } = useAuth()
+  const { colors } = useTheme()
+  const styles = useMemo(() => getStyles(colors), [colors])
   const [residents, setResidents] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -76,7 +78,8 @@ export default function ManageCommitteeScreen() {
   )
 }
 
-const styles = StyleSheet.create({
+function getStyles(colors) {
+  return StyleSheet.create({
   page: { flex: 1, backgroundColor: colors.bg },
   contentContainer: { paddingHorizontal: spacing.xl, paddingTop: spacing.lg, paddingBottom: spacing.xxl },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg },
@@ -99,4 +102,5 @@ const styles = StyleSheet.create({
 
   toggleBtn: { borderWidth: 1, borderColor: colors.border, borderRadius: 6, paddingVertical: 6, paddingHorizontal: 12 },
   toggleBtnText: { fontSize: 11.5, fontWeight: '700', color: colors.text },
-})
+  })
+}

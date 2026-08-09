@@ -1,17 +1,18 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { View, Text, TouchableOpacity, TextInput, StyleSheet, ScrollView, Linking, Alert } from 'react-native'
+import { Ionicons } from '@expo/vector-icons'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
-import { colors, spacing, radius, type } from '../lib/theme'
+import { useTheme, spacing, radius } from '../lib/theme'
 import Card from '../components/ui/Card'
 import Button from '../components/ui/Button'
 
 // Standard India-wide emergency numbers. These never change per-building,
 // so they're hardcoded rather than pulled from the database.
 const NATIONAL_CONTACTS = [
-  { key: 'ambulance', label: 'Ambulance', number: '108', icon: '🚑' },
-  { key: 'police', label: 'Police', number: '100', icon: '🚓' },
-  { key: 'fire', label: 'Fire', number: '101', icon: '🚒' },
+  { key: 'ambulance', label: 'Ambulance', number: '108', icon: 'medkit-outline' },
+  { key: 'police', label: 'Police', number: '100', icon: 'shield-checkmark-outline' },
+  { key: 'fire', label: 'Fire', number: '101', icon: 'flame-outline' },
 ]
 
 function call(number) {
@@ -21,6 +22,8 @@ function call(number) {
 
 export default function EmergencyContactsScreen() {
   const { profile } = useAuth()
+  const { colors, type } = useTheme()
+  const styles = useMemo(() => getStyles(colors, type), [colors, type])
   const [building, setBuilding] = useState(null)
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState(false)
@@ -80,14 +83,14 @@ export default function EmergencyContactsScreen() {
       <Text style={[styles.sectionLabel, { marginTop: spacing.lg }]}>Your building</Text>
 
       <ContactCard
-        icon="🛡️"
+        icon="shield-outline"
         label="Building Security"
         number={loading ? null : building?.security_phone}
         placeholder={isCommittee ? 'Not set — add it below' : 'Not added yet by your committee'}
         onCall={() => call(building?.security_phone)}
       />
       <ContactCard
-        icon="🏢"
+        icon="business-outline"
         label="Committee / Society Office"
         number={loading ? null : building?.office_phone}
         placeholder={isCommittee ? 'Not set — add it below' : 'Not added yet by your committee'}
@@ -133,12 +136,16 @@ export default function EmergencyContactsScreen() {
 }
 
 function ContactCard({ icon, label, number, placeholder, onCall }) {
+  const { colors, type } = useTheme()
+  const styles = useMemo(() => getStyles(colors, type), [colors, type])
   const disabled = !number
   return (
     <TouchableOpacity activeOpacity={disabled ? 1 : 0.7} onPress={disabled ? undefined : onCall}>
       <Card>
         <View style={styles.row}>
-          <Text style={styles.icon}>{icon}</Text>
+          <View style={styles.iconWrap}>
+            <Ionicons name={icon} size={22} color={colors.accent} />
+          </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.label}>{label}</Text>
             <Text style={disabled ? styles.numberMuted : styles.number}>{number || placeholder}</Text>
@@ -154,15 +161,24 @@ function ContactCard({ icon, label, number, placeholder, onCall }) {
   )
 }
 
-const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: colors.bg },
-  sectionLabel: { ...type.eyebrow, marginBottom: spacing.sm },
-  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  icon: { fontSize: 30 },
-  label: { fontSize: 15, fontWeight: '700', color: colors.text },
-  number: { fontSize: 18, fontWeight: '700', color: colors.accent, marginTop: 2 },
-  numberMuted: { ...type.bodyMuted, marginTop: 2, fontStyle: 'italic' },
-  callBadge: { backgroundColor: colors.accent, borderRadius: radius.pill, paddingVertical: 6, paddingHorizontal: 14 },
-  callBadgeText: { color: colors.text, fontWeight: '700', fontSize: 12.5 },
-  input: { borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, padding: spacing.md, fontSize: 14, marginTop: spacing.xs, color: colors.text, backgroundColor: colors.surface },
-})
+function getStyles(colors, type) {
+  return StyleSheet.create({
+    page: { flex: 1, backgroundColor: colors.bg },
+    sectionLabel: { ...type.eyebrow, marginBottom: spacing.sm },
+    row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+    iconWrap: {
+      width: 44,
+      height: 44,
+      borderRadius: radius.md,
+      backgroundColor: colors.accentSoft,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    label: { fontSize: 15, fontWeight: '700', color: colors.text },
+    number: { fontSize: 18, fontWeight: '700', color: colors.accent, marginTop: 2 },
+    numberMuted: { ...type.bodyMuted, marginTop: 2, fontStyle: 'italic' },
+    callBadge: { backgroundColor: colors.accent, borderRadius: radius.pill, paddingVertical: 6, paddingHorizontal: 14 },
+    callBadgeText: { color: colors.text, fontWeight: '700', fontSize: 12.5 },
+    input: { borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, padding: spacing.md, fontSize: 14, marginTop: spacing.xs, color: colors.text, backgroundColor: colors.surface },
+  })
+}

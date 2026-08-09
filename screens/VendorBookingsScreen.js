@@ -1,10 +1,12 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Modal, TextInput, Alert } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
-import { colors, spacing, radius, VENDOR_CATEGORIES } from '../lib/theme'
+import { useTheme, spacing, radius, VENDOR_CATEGORIES } from '../lib/theme'
 
+// Note: these stay hardcoded regardless of theme mode — they're status chip
+// colors, not surface/text tokens, so they don't need to react to light/dark.
 const STATUS_COLORS = {
   requested: { bg: '#7F1D1D', text: '#FECACA' },
   confirmed: { bg: '#78350F', text: '#FDE68A' },
@@ -19,6 +21,9 @@ function categoryLabelFor(category) {
 
 export default function VendorBookingsScreen() {
   const { profile, isAdmin } = useAuth()
+  const { colors } = useTheme()
+  const styles = useMemo(() => getStyles(colors), [colors])
+
   const [bookings, setBookings] = useState([])
   const [loading, setLoading] = useState(true)
   const [completingBooking, setCompletingBooking] = useState(null) // booking currently being marked done
@@ -171,81 +176,83 @@ export default function VendorBookingsScreen() {
   )
 }
 
-const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: colors.bg },
-  contentContainer: { paddingHorizontal: spacing.xl, paddingTop: spacing.lg, paddingBottom: spacing.xxl },
-  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg },
-  muted: { fontSize: 12, color: colors.textSecondary, marginTop: 8 },
-  title: { fontSize: 20, fontWeight: '700', color: colors.text },
-  sub: { fontSize: 12.5, color: colors.textSecondary, marginTop: 4, marginBottom: 16 },
+function getStyles(colors) {
+  return StyleSheet.create({
+    page: { flex: 1, backgroundColor: colors.bg },
+    contentContainer: { paddingHorizontal: spacing.xl, paddingTop: spacing.lg, paddingBottom: spacing.xxl },
+    centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg },
+    muted: { fontSize: 12, color: colors.textSecondary, marginTop: 8 },
+    title: { fontSize: 20, fontWeight: '700', color: colors.text },
+    sub: { fontSize: 12.5, color: colors.textSecondary, marginTop: 4, marginBottom: 16 },
 
-  card: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.lg,
-    padding: 14,
-    marginBottom: 10,
-  },
-  cardTopRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
-  cardTitle: { fontWeight: '700', fontSize: 13.5, color: colors.text },
-  cardMeta: { fontSize: 11.5, color: colors.textTertiary, marginTop: 4 },
-  amountText: { fontSize: 12.5, color: colors.success, fontWeight: '700', marginTop: 6 },
+    card: {
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: radius.lg,
+      padding: 14,
+      marginBottom: 10,
+    },
+    cardTopRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
+    cardTitle: { fontWeight: '700', fontSize: 13.5, color: colors.text },
+    cardMeta: { fontSize: 11.5, color: colors.textTertiary, marginTop: 4 },
+    amountText: { fontSize: 12.5, color: colors.success, fontWeight: '700', marginTop: 6 },
 
-  statusChip: { paddingVertical: 3, paddingHorizontal: 10, borderRadius: radius.pill, marginLeft: 8 },
-  statusText: { fontSize: 11, fontWeight: '700' },
+    statusChip: { paddingVertical: 3, paddingHorizontal: 10, borderRadius: radius.pill, marginLeft: 8 },
+    statusText: { fontSize: 11, fontWeight: '700' },
 
-  doneButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    backgroundColor: colors.accent,
-    borderRadius: radius.md,
-    height: 38,
-    marginTop: 12,
-  },
-  doneButtonText: { color: colors.text, fontSize: 12.5, fontWeight: '700' },
+    doneButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      backgroundColor: colors.accent,
+      borderRadius: radius.md,
+      height: 38,
+      marginTop: 12,
+    },
+    doneButtonText: { color: colors.text, fontSize: 12.5, fontWeight: '700' },
 
-  modalOverlay: { flex: 1, backgroundColor: colors.overlay, alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
-  modalCard: {
-    width: '100%',
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.xl,
-  },
-  modalTitle: { fontSize: 17, fontWeight: '700', color: colors.text },
-  modalSub: { fontSize: 12.5, color: colors.textSecondary, marginTop: 4, marginBottom: 16 },
-  amountInput: {
-    backgroundColor: colors.bg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    paddingHorizontal: 14,
-    height: 48,
-    fontSize: 14,
-    color: colors.text,
-  },
-  modalActionsRow: { flexDirection: 'row', gap: 10, marginTop: 18 },
-  modalCancelBtn: {
-    flex: 1,
-    height: 46,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  modalCancelBtnText: { color: colors.text, fontWeight: '700', fontSize: 13.5 },
-  modalConfirmBtn: {
-    flex: 1,
-    height: 46,
-    borderRadius: radius.md,
-    backgroundColor: colors.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  modalConfirmBtnText: { color: colors.text, fontWeight: '700', fontSize: 13.5 },
-})
+    modalOverlay: { flex: 1, backgroundColor: colors.overlay, alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
+    modalCard: {
+      width: '100%',
+      backgroundColor: colors.surface,
+      borderRadius: radius.lg,
+      borderWidth: 1,
+      borderColor: colors.border,
+      padding: spacing.xl,
+    },
+    modalTitle: { fontSize: 17, fontWeight: '700', color: colors.text },
+    modalSub: { fontSize: 12.5, color: colors.textSecondary, marginTop: 4, marginBottom: 16 },
+    amountInput: {
+      backgroundColor: colors.bg,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: radius.md,
+      paddingHorizontal: 14,
+      height: 48,
+      fontSize: 14,
+      color: colors.text,
+    },
+    modalActionsRow: { flexDirection: 'row', gap: 10, marginTop: 18 },
+    modalCancelBtn: {
+      flex: 1,
+      height: 46,
+      borderRadius: radius.md,
+      borderWidth: 1,
+      borderColor: colors.borderStrong,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    modalCancelBtnText: { color: colors.text, fontWeight: '700', fontSize: 13.5 },
+    modalConfirmBtn: {
+      flex: 1,
+      height: 46,
+      borderRadius: radius.md,
+      backgroundColor: colors.accent,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    modalConfirmBtnText: { color: colors.text, fontWeight: '700', fontSize: 13.5 },
+  })
+}

@@ -5,7 +5,7 @@ import * as FileSystem from 'expo-file-system/legacy'
 import * as Sharing from 'expo-sharing'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
-import { colors, spacing, radius, shadow } from '../lib/theme'
+import { useTheme, spacing, radius } from '../lib/theme'
 import { dueDateForMonth, getCurrentMonthStr } from '../lib/format'
 import { useNavigation } from '@react-navigation/native'
 function currentMonthStr() {
@@ -27,6 +27,8 @@ function dueDateLabel(month, dueDay) {
 }
 
 function CollectionRing({ percentage, paidUnits, totalUnits }) {
+  const { colors, shadow } = useTheme()
+  const styles = useMemo(() => getStyles(colors, shadow), [colors, shadow])
   const dotCount = 80
   const totalArc = 270
   const startAngle = 135
@@ -50,7 +52,7 @@ function CollectionRing({ percentage, paidUnits, totalUnits }) {
                 width: 9,
                 height: 9,
                 borderRadius: 4.5,
-                backgroundColor: isFilled ? colors.success : 'rgba(255,255,255,0.08)',
+                backgroundColor: isFilled ? colors.success : colors.skeleton,
                 left: center + ringRadius * Math.cos(radians) - 4.5,
                 top: center + ringRadius * Math.sin(radians) - 4.5,
               }}
@@ -66,7 +68,9 @@ function CollectionRing({ percentage, paidUnits, totalUnits }) {
   )
 }
 
-function LineSegment({ x1, y1, x2, y2, color = colors.success, strokeWidth = 2.5 }) {
+function LineSegment({ x1, y1, x2, y2, color, strokeWidth = 2.5 }) {
+  const { colors } = useTheme()
+  const resolvedColor = color || colors.success
   const dx = x2 - x1
   const dy = y2 - y1
   const length = Math.sqrt(dx * dx + dy * dy)
@@ -80,7 +84,7 @@ function LineSegment({ x1, y1, x2, y2, color = colors.success, strokeWidth = 2.5
         top: y1 - strokeWidth / 2,
         width: length,
         height: strokeWidth,
-        backgroundColor: color,
+        backgroundColor: resolvedColor,
         borderRadius: strokeWidth / 2,
         transform: [
           { translateX: length / 2 },
@@ -161,6 +165,7 @@ function getCatmullRomPoints(points, containerWidth, chartHeight, numSamples = 9
 }
 
 function CollectionTrend({ points }) {
+  const { colors } = useTheme()
   const [containerWidth, setContainerWidth] = useState(0)
   const chartHeight = 70
   const dateLabels = [1, 3, 5, 8, 11, 14, 17, 20, 23, 26, 29]
@@ -194,7 +199,7 @@ function CollectionTrend({ points }) {
                     bottom: 0,
                     width: stripWidth + 0.6,
                     height: fillHeight,
-                    backgroundColor: 'rgba(16, 185, 129, 0.14)',
+                    backgroundColor: colors.successBg,
                   }}
                 />
               )
@@ -217,7 +222,7 @@ function CollectionTrend({ points }) {
                   borderRadius: 5,
                   backgroundColor: colors.success,
                   borderWidth: 2,
-                  borderColor: '#fff',
+                  borderColor: colors.bg,
                   shadowColor: colors.success,
                   shadowOffset: { width: 0, height: 0 },
                   shadowOpacity: 0.8,
@@ -232,7 +237,7 @@ function CollectionTrend({ points }) {
 
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 4, paddingTop: 8 }}>
         {dateLabels.map(day => (
-          <Text key={day} style={{ color: '#4B5563', fontSize: 10, fontWeight: '500' }}>{day}</Text>
+          <Text key={day} style={{ color: colors.textTertiary, fontSize: 10, fontWeight: '500' }}>{day}</Text>
         ))}
       </View>
     </View>
@@ -241,6 +246,8 @@ function CollectionTrend({ points }) {
 
 export default function CollectionsScreen() {
   const { profile } = useAuth()
+  const { colors, shadow } = useTheme()
+  const styles = useMemo(() => getStyles(colors, shadow), [colors, shadow])
   const navigation = useNavigation()
   const [rows, setRows] = useState([])
   const [buildingName, setBuildingName] = useState('Your building')
@@ -435,8 +442,8 @@ export default function CollectionsScreen() {
           <Text style={styles.subtitle}>{buildingName} · {monthLabel(month)}</Text>
         </View>
         <TouchableOpacity style={styles.headerIcon} onPress={() => navigation.navigate('CollectionHistory')}>
-  <Ionicons name="time-outline" size={18} color={colors.success} />
-</TouchableOpacity>
+          <Ionicons name="time-outline" size={18} color={colors.success} />
+        </TouchableOpacity>
       </View>
 
       <View style={[styles.card, styles.summaryCard]}>
@@ -454,7 +461,7 @@ export default function CollectionsScreen() {
             <Text style={styles.statusText}>{metrics.pending} pending</Text>
           </View>
           <View style={styles.statusLine}>
-            <View style={[styles.dot, { backgroundColor: '#4B5563' }]} />
+            <View style={[styles.dot, { backgroundColor: colors.textTertiary }]} />
             <Text style={styles.dueText}>Due {dueDateLabel(month, maintenanceDueDay)}</Text>
           </View>
         </View>
@@ -516,65 +523,67 @@ export default function CollectionsScreen() {
   )
 }
 
-const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: colors.bg },
-  content: {
-    paddingHorizontal: spacing.xl,
-    paddingBottom: spacing.xxxl,
-  },
-  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg },
-  loadingText: { color: colors.textSecondary, marginTop: 10 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing.sm, marginBottom: spacing.xl },
-  title: { color: colors.text, fontSize: 28, fontWeight: '800', letterSpacing: -0.7 },
-  subtitle: { color: colors.textSecondary, marginTop: 4, fontSize: 13 },
-  headerIcon: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.successBg, borderWidth: 1, borderColor: 'rgba(16,185,129,0.28)' },
-  card: { backgroundColor: colors.surface, borderRadius: radius.xl, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border, ...shadow.card },
-  summaryCard: { flexDirection: 'row', alignItems: 'center', padding: 16, marginBottom: spacing.xl },
-  ringContainer: { width: 132, height: 132, alignItems: 'center', justifyContent: 'center' },
-  ringWrap: { width: 132, height: 132, position: 'relative', alignItems: 'center', justifyContent: 'center' },
-  ringLabelInner: { alignItems: 'center', justifyContent: 'center' },
-  ringPercentText: { fontSize: 28, fontWeight: '800', color: colors.text },
-  ringSubUnitsText: { fontSize: 11, color: colors.textTertiary, marginTop: 1 },
-  summaryInfo: { flex: 1, marginLeft: 14 },
-  eyebrow: { color: colors.textTertiary, fontSize: 10.5, fontWeight: '700', letterSpacing: 0.8, textTransform: 'uppercase' },
-  bigAmount: { color: colors.text, fontSize: 25, fontWeight: '800', letterSpacing: -0.5, marginTop: 2 },
-  expected: { color: colors.textTertiary, fontSize: 11.5, marginTop: 2, marginBottom: 8 },
-  statusLine: { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
-  dot: { width: 6, height: 6, borderRadius: 3, marginRight: 8 },
-  statusText: { color: colors.textSecondary, fontSize: 12, fontWeight: '600' },
-  dueText: { color: colors.textTertiary, fontSize: 12, fontWeight: '500' },
-  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
-  sectionTitle: { color: colors.text, fontSize: 15, fontWeight: '700', marginBottom: 10 },
-  sectionTitleHeader: { color: colors.textTertiary, fontSize: 11, fontWeight: '700', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 10 },
-  lastEntryText: { color: colors.success, fontSize: 12, fontWeight: '700', marginBottom: 10 },
-  chartCard: { padding: spacing.lg, marginBottom: spacing.xl },
-  chartAmount: { color: colors.text, fontSize: 27, fontWeight: '800', marginTop: 3, marginBottom: 4, letterSpacing: -0.5 },
-  actionRow: { flexDirection: 'row', gap: 10, marginBottom: 10 },
-  generateButton: { flex: 1, minHeight: 46, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, backgroundColor: colors.accent, borderRadius: radius.md },
-  generateText: { color: colors.text, fontWeight: '700', fontSize: 13 },
-  exportButton: { width: 46, alignItems: 'center', justifyContent: 'center', borderRadius: radius.md, backgroundColor: colors.surfaceElevated, borderWidth: 1, borderColor: colors.borderStrong },
-  error: { color: colors.danger, fontSize: 12, marginBottom: 10 },
-  searchInput: { color: colors.text, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, paddingHorizontal: 13, paddingVertical: 12, fontSize: 13.5, marginTop: 4, marginBottom: 10 },
-  filterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: spacing.xl },
-  filter: { paddingVertical: 7, paddingHorizontal: 12, borderRadius: radius.pill, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
-  filterActive: { paddingVertical: 7, paddingHorizontal: 12, borderRadius: radius.pill, backgroundColor: colors.accent },
-  filterText: { color: colors.textSecondary, fontSize: 12, fontWeight: '600' },
-  filterTextActive: { color: colors.text, fontSize: 12, fontWeight: '700' },
-  unitCard: { minHeight: 74, flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: radius.lg, marginBottom: 9, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
-  flatBadge: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  flatBadgeText: { fontSize: 11, fontWeight: '800' },
-  unitInfo: { flex: 1, marginLeft: 11 },
-  residentName: { color: colors.text, fontSize: 16, fontWeight: '700' },
-  statusMeta: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 3 },
-  unitMeta: { fontSize: 11, fontWeight: '600' },
-  amountMeta: { color: colors.textTertiary, fontSize: 12, marginTop: 2, fontWeight: '500' },
-  unitActions: { alignItems: 'flex-end', gap: 4 },
-  markButton: { paddingVertical: 6, paddingHorizontal: 9, borderRadius: 8 },
-  markButtonText: { fontSize: 11, fontWeight: '700' },
-  proofText: { color: colors.accent, fontSize: 11, fontWeight: '700' },
-  empty: { color: colors.textSecondary, textAlign: 'center', paddingVertical: 24 },
-  modalOverlay: { flex: 1, backgroundColor: colors.overlay, alignItems: 'center', justifyContent: 'center' },
-  modalImage: { width: '92%', height: '75%' },
-  closeButton: { marginTop: 20, backgroundColor: 'rgba(255,255,255,0.15)', paddingVertical: 10, paddingHorizontal: 24, borderRadius: 8 },
-  closeButtonText: { color: '#fff', fontWeight: '700', fontSize: 14 },
-})
+function getStyles(colors, shadow) {
+  return StyleSheet.create({
+    page: { flex: 1, backgroundColor: colors.bg },
+    content: {
+      paddingHorizontal: spacing.xl,
+      paddingBottom: spacing.xxxl,
+    },
+    centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg },
+    loadingText: { color: colors.textSecondary, marginTop: 10 },
+    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing.sm, marginBottom: spacing.xl },
+    title: { color: colors.text, fontSize: 28, fontWeight: '800', letterSpacing: -0.7 },
+    subtitle: { color: colors.textSecondary, marginTop: 4, fontSize: 13 },
+    headerIcon: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.successBg, borderWidth: 1, borderColor: 'rgba(16,185,129,0.28)' },
+    card: { backgroundColor: colors.surface, borderRadius: radius.xl, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border, ...shadow.card },
+    summaryCard: { flexDirection: 'row', alignItems: 'center', padding: 16, marginBottom: spacing.xl },
+    ringContainer: { width: 132, height: 132, alignItems: 'center', justifyContent: 'center' },
+    ringWrap: { width: 132, height: 132, position: 'relative', alignItems: 'center', justifyContent: 'center' },
+    ringLabelInner: { alignItems: 'center', justifyContent: 'center' },
+    ringPercentText: { fontSize: 28, fontWeight: '800', color: colors.text },
+    ringSubUnitsText: { fontSize: 11, color: colors.textTertiary, marginTop: 1 },
+    summaryInfo: { flex: 1, marginLeft: 14 },
+    eyebrow: { color: colors.textTertiary, fontSize: 10.5, fontWeight: '700', letterSpacing: 0.8, textTransform: 'uppercase' },
+    bigAmount: { color: colors.text, fontSize: 25, fontWeight: '800', letterSpacing: -0.5, marginTop: 2 },
+    expected: { color: colors.textTertiary, fontSize: 11.5, marginTop: 2, marginBottom: 8 },
+    statusLine: { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
+    dot: { width: 6, height: 6, borderRadius: 3, marginRight: 8 },
+    statusText: { color: colors.textSecondary, fontSize: 12, fontWeight: '600' },
+    dueText: { color: colors.textTertiary, fontSize: 12, fontWeight: '500' },
+    sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+    sectionTitle: { color: colors.text, fontSize: 15, fontWeight: '700', marginBottom: 10 },
+    sectionTitleHeader: { color: colors.textTertiary, fontSize: 11, fontWeight: '700', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 10 },
+    lastEntryText: { color: colors.success, fontSize: 12, fontWeight: '700', marginBottom: 10 },
+    chartCard: { padding: spacing.lg, marginBottom: spacing.xl },
+    chartAmount: { color: colors.text, fontSize: 27, fontWeight: '800', marginTop: 3, marginBottom: 4, letterSpacing: -0.5 },
+    actionRow: { flexDirection: 'row', gap: 10, marginBottom: 10 },
+    generateButton: { flex: 1, minHeight: 46, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, backgroundColor: colors.accent, borderRadius: radius.md },
+    generateText: { color: colors.text, fontWeight: '700', fontSize: 13 },
+    exportButton: { width: 46, alignItems: 'center', justifyContent: 'center', borderRadius: radius.md, backgroundColor: colors.surfaceElevated, borderWidth: 1, borderColor: colors.borderStrong },
+    error: { color: colors.danger, fontSize: 12, marginBottom: 10 },
+    searchInput: { color: colors.text, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, paddingHorizontal: 13, paddingVertical: 12, fontSize: 13.5, marginTop: 4, marginBottom: 10 },
+    filterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: spacing.xl },
+    filter: { paddingVertical: 7, paddingHorizontal: 12, borderRadius: radius.pill, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+    filterActive: { paddingVertical: 7, paddingHorizontal: 12, borderRadius: radius.pill, backgroundColor: colors.accent },
+    filterText: { color: colors.textSecondary, fontSize: 12, fontWeight: '600' },
+    filterTextActive: { color: colors.text, fontSize: 12, fontWeight: '700' },
+    unitCard: { minHeight: 74, flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: radius.lg, marginBottom: 9, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+    flatBadge: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+    flatBadgeText: { fontSize: 11, fontWeight: '800' },
+    unitInfo: { flex: 1, marginLeft: 11 },
+    residentName: { color: colors.text, fontSize: 16, fontWeight: '700' },
+    statusMeta: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 3 },
+    unitMeta: { fontSize: 11, fontWeight: '600' },
+    amountMeta: { color: colors.textTertiary, fontSize: 12, marginTop: 2, fontWeight: '500' },
+    unitActions: { alignItems: 'flex-end', gap: 4 },
+    markButton: { paddingVertical: 6, paddingHorizontal: 9, borderRadius: 8 },
+    markButtonText: { fontSize: 11, fontWeight: '700' },
+    proofText: { color: colors.accent, fontSize: 11, fontWeight: '700' },
+    empty: { color: colors.textSecondary, textAlign: 'center', paddingVertical: 24 },
+    modalOverlay: { flex: 1, backgroundColor: colors.overlay, alignItems: 'center', justifyContent: 'center' },
+    modalImage: { width: '92%', height: '75%' },
+    closeButton: { marginTop: 20, backgroundColor: 'rgba(255,255,255,0.15)', paddingVertical: 10, paddingHorizontal: 24, borderRadius: 8 },
+    closeButtonText: { color: '#fff', fontWeight: '700', fontSize: 14 },
+  })
+}

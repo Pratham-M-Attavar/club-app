@@ -1,11 +1,12 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet, Animated } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { colors } from '../lib/theme'
+import { useTheme } from '../lib/theme'
 
 export default function ServiceContactScreen({ navigation, route }) {
-  const c = colors
+  const { colors: c } = useTheme()
+  const styles = useMemo(() => getStyles(c), [c])
   const categoryLabel = route?.params?.categoryLabel || 'Service'
   const pulse = useRef(new Animated.Value(1)).current
 
@@ -42,7 +43,8 @@ export default function ServiceContactScreen({ navigation, route }) {
   )
 }
 
-const styles = StyleSheet.create({
+function getStyles(colors) {
+  return StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   content: {
     flex: 1,
@@ -86,4 +88,5 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.text,
   },
-})
+  })
+}

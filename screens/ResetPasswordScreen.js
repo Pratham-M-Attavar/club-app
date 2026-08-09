@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import {
   View,
   Text,
@@ -12,10 +12,13 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { supabase } from '../lib/supabase'
-import { colors, spacing, radius, type, shadow } from '../lib/theme'
+import { useTheme, spacing, radius } from '../lib/theme'
 import Button from '../components/ui/Button'
 
 export default function ResetPasswordScreen({ onDone }) {
+  const { colors, type, shadow } = useTheme()
+  const styles = useMemo(() => getStyles(colors, type, shadow), [colors, type, shadow])
+
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [passwordFocused, setPasswordFocused] = useState(false)
@@ -140,94 +143,96 @@ export default function ResetPasswordScreen({ onDone }) {
   )
 }
 
-const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: colors.bg },
-  centerWrap: {
-    flex: 1,
-    justifyContent: 'center',
-    paddingHorizontal: spacing.lg,
-  },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.xl,
-    padding: spacing.xl,
-    borderWidth: 1,
-    borderColor: colors.border,
-    ...shadow.card,
-  },
-  headerContainer: {
-    alignItems: 'center',
-    marginBottom: spacing.xl,
-  },
-  logoBadge: {
-    width: 56,
-    height: 56,
-    borderRadius: radius.md,
-    backgroundColor: colors.surfaceElevated,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-    marginBottom: spacing.md,
-    ...shadow.sm,
-  },
-  title: {
-    ...type.display,
-    textAlign: 'center',
-    letterSpacing: -0.6,
-    fontSize: 20,
-  },
-  subtitle: {
-    ...type.bodyMuted,
-    textAlign: 'center',
-    marginTop: 4,
-  },
-  inputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surfaceMuted,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.md,
-    marginBottom: spacing.md,
-    height: 48,
-  },
-  inputFocused: {
-    borderColor: colors.accent,
-    backgroundColor: colors.surfaceElevated,
-  },
-  inputIcon: {
-    marginRight: spacing.sm,
-  },
-  inputField: {
-    flex: 1,
-    color: colors.text,
-    fontSize: 14.5,
-    height: '100%',
-  },
-  eyeBtn: {
-    padding: spacing.xs,
-  },
-  primaryButton: {
-    alignSelf: 'stretch',
-    marginTop: spacing.xs,
-    height: 48,
-  },
-  errorBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    backgroundColor: colors.dangerBg,
-    padding: spacing.md,
-    borderRadius: radius.sm,
-    marginBottom: spacing.md,
-    borderWidth: 1,
-    borderColor: 'rgba(239, 68, 68, 0.3)',
-  },
-  errorText: {
-    color: colors.danger,
-    fontSize: 13,
-    flex: 1,
-  },
-})
+function getStyles(colors, type, shadow) {
+  return StyleSheet.create({
+    page: { flex: 1, backgroundColor: colors.bg },
+    centerWrap: {
+      flex: 1,
+      justifyContent: 'center',
+      paddingHorizontal: spacing.lg,
+    },
+    card: {
+      backgroundColor: colors.surface,
+      borderRadius: radius.xl,
+      padding: spacing.xl,
+      borderWidth: 1,
+      borderColor: colors.border,
+      ...shadow.card,
+    },
+    headerContainer: {
+      alignItems: 'center',
+      marginBottom: spacing.xl,
+    },
+    logoBadge: {
+      width: 56,
+      height: 56,
+      borderRadius: radius.md,
+      backgroundColor: colors.surfaceElevated,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1,
+      borderColor: colors.borderStrong,
+      marginBottom: spacing.md,
+      ...shadow.sm,
+    },
+    title: {
+      ...type.display,
+      textAlign: 'center',
+      letterSpacing: -0.6,
+      fontSize: 20,
+    },
+    subtitle: {
+      ...type.bodyMuted,
+      textAlign: 'center',
+      marginTop: 4,
+    },
+    inputWrapper: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.surfaceMuted,
+      borderWidth: 1.5,
+      borderColor: colors.border,
+      borderRadius: radius.md,
+      paddingHorizontal: spacing.md,
+      marginBottom: spacing.md,
+      height: 48,
+    },
+    inputFocused: {
+      borderColor: colors.accent,
+      backgroundColor: colors.surfaceElevated,
+    },
+    inputIcon: {
+      marginRight: spacing.sm,
+    },
+    inputField: {
+      flex: 1,
+      color: colors.text,
+      fontSize: 14.5,
+      height: '100%',
+    },
+    eyeBtn: {
+      padding: spacing.xs,
+    },
+    primaryButton: {
+      alignSelf: 'stretch',
+      marginTop: spacing.xs,
+      height: 48,
+    },
+    errorBox: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.xs,
+      backgroundColor: colors.dangerBg,
+      padding: spacing.md,
+      borderRadius: radius.sm,
+      marginBottom: spacing.md,
+      borderWidth: 1,
+      borderColor: 'rgba(239, 68, 68, 0.3)',
+    },
+    errorText: {
+      color: colors.danger,
+      fontSize: 13,
+      flex: 1,
+    },
+  })
+}

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import {
   View,
   Text,
@@ -15,7 +15,7 @@ import {
 import { Ionicons } from '@expo/vector-icons'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useAuth } from '../lib/AuthContext'
-import { colors } from '../lib/theme'
+import { useTheme } from '../lib/theme'
 import { supabase } from '../lib/supabase'
 import BuildingPickerModal from '../components/BuildingPickerModal'
 import { getCurrentMonthStr } from '../lib/format'
@@ -34,7 +34,8 @@ function ordinal(day) {
 
 export default function OwnerTenantScreen() {
   const { profile, signOut, isAdmin, adminBuilding, switchBuilding } = useAuth()
-  const c = colors
+  const { colors: c, mode, toggleMode } = useTheme()
+  const styles = useMemo(() => getStyles(c), [c])
 
   // Toggles state
   const [notifications, setNotifications] = useState(true)
@@ -103,8 +104,6 @@ export default function OwnerTenantScreen() {
 
     setSaving(true)
     try {
-      // The current month's pending rent changes immediately. Paid rent keeps
-      // its recorded amount; the new flat default takes effect next month.
       const { error: rentError } = await supabase
         .from('rent_payments')
         .update({ amount: numericRent || null })
@@ -172,7 +171,6 @@ export default function OwnerTenantScreen() {
       ? 'Tenant'
       : 'Resident'
 
-  // Fully dynamic apartment and unit label (NO HARDCODING)
   const apartmentName = buildingInfo?.name || 'Apartment'
   const unitLabel = `${apartmentName} · Unit ${profile?.flat_number || ''}`
 
@@ -393,6 +391,21 @@ export default function OwnerTenantScreen() {
         <View style={styles.groupedCard}>
           <View style={styles.itemRow}>
             <View style={styles.itemLeft}>
+              <Ionicons name={mode === 'dark' ? 'moon-outline' : 'sunny-outline'} size={18} color={c.textSecondary} />
+              <Text style={styles.itemKey}>Dark Mode</Text>
+            </View>
+            <Switch
+              value={mode === 'dark'}
+              onValueChange={toggleMode}
+              trackColor={{ false: c.surfaceElevated, true: c.accent }}
+              thumbColor={c.text}
+            />
+          </View>
+
+          <View style={styles.itemDivider} />
+
+          <View style={styles.itemRow}>
+            <View style={styles.itemLeft}>
               <Ionicons name="notifications-outline" size={18} color={c.textSecondary} />
               <Text style={styles.itemKey}>Notifications</Text>
             </View>
@@ -546,309 +559,313 @@ export default function OwnerTenantScreen() {
   )
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.bg,
-  },
-  scrollContent: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 40,
-  },
-  profileHeader: {
-    alignItems: 'center',
-    marginBottom: 28,
-  },
-  avatarCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: colors.accentSoft,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 14,
-  },
-  avatarText: {
-    fontSize: 26,
-    fontWeight: '800',
-    color: colors.accent,
-  },
-  avatarSubBadge: {
-    position: 'absolute',
-    bottom: 2,
-    right: 2,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: colors.surfaceElevated,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: colors.bg,
-  },
-  userName: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: colors.text,
-    letterSpacing: -0.3,
-  },
-  userRoleSub: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginTop: 4,
-  },
-  memberPill: {
-    backgroundColor: colors.accentSoft,
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 999,
-    marginTop: 12,
-  },
-  memberPillText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.accent,
-  },
-  sectionHeader: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: colors.textSecondary,
-    letterSpacing: 0.8,
-    marginBottom: 10,
-    marginTop: 8,
-  },
-  groupedCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 20,
-    padding: 18,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginBottom: 20,
-  },
-  setupSubtext: {
-    fontSize: 13,
-    color: colors.textSecondary,
-    marginBottom: 16,
-    lineHeight: 18,
-  },
-  inputLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: colors.textSecondary,
-    letterSpacing: 0.8,
-    marginBottom: 8,
-    marginTop: 10,
-  },
-  textInput: {
-    backgroundColor: colors.bg,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    height: 48,
-    fontSize: 14,
-    color: colors.text,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginBottom: 8,
-  },
-  dayPickerButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    backgroundColor: colors.bg,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    height: 48,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginBottom: 8,
-  },
-  dayPickerButtonText: {
-    flex: 1,
-    fontSize: 14,
-    color: colors.text,
-    fontWeight: '500',
-  },
-  payerToggleRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 4,
-    marginBottom: 18,
-  },
-  payerOption: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    height: 46,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.bg,
-  },
-  payerOptionSelected: {
-    backgroundColor: colors.accent,
-    borderColor: colors.accent,
-  },
-  payerOptionText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.textSecondary,
-  },
-  payerOptionTextSelected: {
-    color: colors.text,
-  },
-  saveButton: {
-    backgroundColor: colors.accent,
-    borderRadius: 14,
-    height: 48,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 6,
-  },
-  saveButtonText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  itemRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 14,
-  },
-  itemLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  itemKey: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  itemVal: {
-    fontSize: 14,
-    color: colors.textSecondary,
-  },
-  itemDivider: {
-    height: 1,
-    backgroundColor: colors.border,
-  },
-  signOutButton: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: colors.dangerBg,
-    borderRadius: 999,
-    height: 52,
-    borderWidth: 1,
-    borderColor: 'rgba(239,68,68,0.3)',
-    marginTop: 10,
-  },
-  signOutButtonText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: colors.danger,
-  },
-  modalOverlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: colors.overlay,
-  },
-  modalBackdrop: {
-    flex: 1,
-  },
-  modalSheet: {
-    backgroundColor: colors.surface,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 24,
-    borderWidth: 1,
-    borderColor: colors.border,
-    maxHeight: '70%',
-  },
-  sheetHandle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: colors.borderStrong,
-    alignSelf: 'center',
-    marginBottom: 16,
-  },
-  sheetHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  sheetTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  closeBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.surfaceElevated,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  pickerHint: {
-    fontSize: 12.5,
-    color: colors.textTertiary,
-    marginBottom: 16,
-  },
-  dayScrollList: {
-    maxHeight: 320,
-  },
-  dayGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-    paddingBottom: 10,
-  },
-  dayCell: {
-    width: '17%',
-    aspectRatio: 1,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.bg,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dayCellSelected: {
-    backgroundColor: colors.accent,
-    borderColor: colors.accent,
-  },
-  dayCellText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  dayCellTextSelected: {
-    color: colors.text,
-  },
-  termsSectionTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.text,
-    marginTop: 14,
-    marginBottom: 6,
-  },
-  termsBody: {
-    fontSize: 13,
-    color: colors.textSecondary,
-    lineHeight: 19,
-  },
-  termsFooter: {
-    fontSize: 11,
-    color: colors.textTertiary,
-    marginTop: 20,
-    marginBottom: 10,
-  },
-})
+// Styles now depend on the active theme's colors — rebuilt whenever
+// mode/colors change, memoized in the component via useMemo.
+function getStyles(colors) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.bg,
+    },
+    scrollContent: {
+      paddingHorizontal: 20,
+      paddingTop: 16,
+      paddingBottom: 40,
+    },
+    profileHeader: {
+      alignItems: 'center',
+      marginBottom: 28,
+    },
+    avatarCircle: {
+      width: 80,
+      height: 80,
+      borderRadius: 40,
+      backgroundColor: colors.accentSoft,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginBottom: 14,
+    },
+    avatarText: {
+      fontSize: 26,
+      fontWeight: '800',
+      color: colors.accent,
+    },
+    avatarSubBadge: {
+      position: 'absolute',
+      bottom: 2,
+      right: 2,
+      width: 22,
+      height: 22,
+      borderRadius: 11,
+      backgroundColor: colors.surfaceElevated,
+      justifyContent: 'center',
+      alignItems: 'center',
+      borderWidth: 1.5,
+      borderColor: colors.bg,
+    },
+    userName: {
+      fontSize: 22,
+      fontWeight: '800',
+      color: colors.text,
+      letterSpacing: -0.3,
+    },
+    userRoleSub: {
+      fontSize: 14,
+      color: colors.textSecondary,
+      marginTop: 4,
+    },
+    memberPill: {
+      backgroundColor: colors.accentSoft,
+      paddingHorizontal: 14,
+      paddingVertical: 6,
+      borderRadius: 999,
+      marginTop: 12,
+    },
+    memberPillText: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: colors.accent,
+    },
+    sectionHeader: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: colors.textSecondary,
+      letterSpacing: 0.8,
+      marginBottom: 10,
+      marginTop: 8,
+    },
+    groupedCard: {
+      backgroundColor: colors.surface,
+      borderRadius: 20,
+      padding: 18,
+      borderWidth: 1,
+      borderColor: colors.border,
+      marginBottom: 20,
+    },
+    setupSubtext: {
+      fontSize: 13,
+      color: colors.textSecondary,
+      marginBottom: 16,
+      lineHeight: 18,
+    },
+    inputLabel: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: colors.textSecondary,
+      letterSpacing: 0.8,
+      marginBottom: 8,
+      marginTop: 10,
+    },
+    textInput: {
+      backgroundColor: colors.bg,
+      borderRadius: 12,
+      paddingHorizontal: 14,
+      height: 48,
+      fontSize: 14,
+      color: colors.text,
+      borderWidth: 1,
+      borderColor: colors.border,
+      marginBottom: 8,
+    },
+    dayPickerButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      backgroundColor: colors.bg,
+      borderRadius: 12,
+      paddingHorizontal: 14,
+      height: 48,
+      borderWidth: 1,
+      borderColor: colors.border,
+      marginBottom: 8,
+    },
+    dayPickerButtonText: {
+      flex: 1,
+      fontSize: 14,
+      color: colors.text,
+      fontWeight: '500',
+    },
+    payerToggleRow: {
+      flexDirection: 'row',
+      gap: 10,
+      marginTop: 4,
+      marginBottom: 18,
+    },
+    payerOption: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      height: 46,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.bg,
+    },
+    payerOptionSelected: {
+      backgroundColor: colors.accent,
+      borderColor: colors.accent,
+    },
+    payerOptionText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.textSecondary,
+    },
+    payerOptionTextSelected: {
+      color: colors.text,
+    },
+    saveButton: {
+      backgroundColor: colors.accent,
+      borderRadius: 14,
+      height: 48,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginTop: 6,
+    },
+    saveButtonText: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    itemRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingVertical: 14,
+    },
+    itemLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+    },
+    itemKey: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: colors.text,
+    },
+    itemVal: {
+      fontSize: 14,
+      color: colors.textSecondary,
+    },
+    itemDivider: {
+      height: 1,
+      backgroundColor: colors.border,
+    },
+    signOutButton: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      alignItems: 'center',
+      gap: 8,
+      backgroundColor: colors.dangerBg,
+      borderRadius: 999,
+      height: 52,
+      borderWidth: 1,
+      borderColor: 'rgba(239,68,68,0.3)',
+      marginTop: 10,
+    },
+    signOutButtonText: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: colors.danger,
+    },
+    modalOverlay: {
+      flex: 1,
+      justifyContent: 'flex-end',
+      backgroundColor: colors.overlay,
+    },
+    modalBackdrop: {
+      flex: 1,
+    },
+    modalSheet: {
+      backgroundColor: colors.surface,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      padding: 24,
+      borderWidth: 1,
+      borderColor: colors.border,
+      maxHeight: '70%',
+    },
+    sheetHandle: {
+      width: 36,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: colors.borderStrong,
+      alignSelf: 'center',
+      marginBottom: 16,
+    },
+    sheetHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 8,
+    },
+    sheetTitle: {
+      fontSize: 20,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    closeBtn: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: colors.surfaceElevated,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    pickerHint: {
+      fontSize: 12.5,
+      color: colors.textTertiary,
+      marginBottom: 16,
+    },
+    dayScrollList: {
+      maxHeight: 320,
+    },
+    dayGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 10,
+      paddingBottom: 10,
+    },
+    dayCell: {
+      width: '17%',
+      aspectRatio: 1,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.bg,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    dayCellSelected: {
+      backgroundColor: colors.accent,
+      borderColor: colors.accent,
+    },
+    dayCellText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.text,
+    },
+    dayCellTextSelected: {
+      color: colors.text,
+    },
+    termsSectionTitle: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: colors.text,
+      marginTop: 14,
+      marginBottom: 6,
+    },
+    termsBody: {
+      fontSize: 13,
+      color: colors.textSecondary,
+      lineHeight: 19,
+    },
+    termsFooter: {
+      fontSize: 11,
+      color: colors.textTertiary,
+      marginTop: 20,
+      marginBottom: 10,
+    },
+  })
+}

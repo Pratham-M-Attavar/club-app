@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { View, Text, StyleSheet, ScrollView } from 'react-native'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
-import { colors, spacing, type } from '../lib/theme'
+import { useTheme, spacing } from '../lib/theme'
 import { generateReceipt } from '../lib/receipt'
 import Card from '../components/ui/Card'
 import Button from '../components/ui/Button'
@@ -14,6 +14,8 @@ const MONTHS_TO_SHOW = 12
 
 export default function PaymentHistoryScreen() {
   const { profile } = useAuth()
+  const { colors, type } = useTheme()
+  const styles = useMemo(() => getStyles(colors, type), [colors, type])
   const [dues, setDues] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -79,9 +81,11 @@ export default function PaymentHistoryScreen() {
   )
 }
 
-const styles = StyleSheet.create({
+function getStyles(colors, type) {
+  return StyleSheet.create({
   page: { flex: 1, backgroundColor: colors.bg },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   monthLabel: { ...type.eyebrow, marginBottom: 4 },
   amount: { fontSize: 20, fontWeight: '700', color: colors.text },
-})
+  })
+}

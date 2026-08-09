@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
-import { colors, radius, spacing } from '../lib/theme'
+import { useTheme, radius, spacing } from '../lib/theme'
 
 function monthKey(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-01`
@@ -29,13 +29,17 @@ function money(amount) {
   return `₹${Number(amount || 0).toLocaleString('en-IN')}`
 }
 
-const STATUS = {
-  paid: { label: 'Paid', color: colors.success, bg: colors.successBg, icon: 'checkmark-circle-outline' },
-  submitted: { label: 'Submitted', color: '#3B82F6', bg: 'rgba(59, 130, 246, 0.16)', icon: 'time-outline' },
-  pending: { label: 'Pending', color: colors.warning, bg: colors.warningBg, icon: 'alert-circle-outline' },
+function getStatusMeta(colors) {
+  return {
+    paid: { label: 'Paid', color: colors.success, bg: colors.successBg, icon: 'checkmark-circle-outline' },
+    submitted: { label: 'Submitted', color: '#3B82F6', bg: 'rgba(59, 130, 246, 0.16)', icon: 'time-outline' },
+    pending: { label: 'Pending', color: colors.warning, bg: colors.warningBg, icon: 'alert-circle-outline' },
+  }
 }
 
 function CollectionRing({ percentage, size = 104 }) {
+  const { colors } = useTheme()
+  const styles = useMemo(() => getStyles(colors), [colors])
   const dotCount = 60
   const totalArc = 270
   const startAngle = 135
@@ -58,7 +62,7 @@ function CollectionRing({ percentage, size = 104 }) {
               width: 7,
               height: 7,
               borderRadius: 3.5,
-              backgroundColor: isFilled ? colors.success : 'rgba(255,255,255,0.08)',
+              backgroundColor: isFilled ? colors.success : colors.skeleton,
               left: center + ringRadius * Math.cos(radians) - 3.5,
               top: center + ringRadius * Math.sin(radians) - 3.5,
             }}
@@ -75,6 +79,9 @@ function CollectionRing({ percentage, size = 104 }) {
 
 export default function CollectionHistoryScreen() {
   const { profile } = useAuth()
+  const { colors } = useTheme()
+  const styles = useMemo(() => getStyles(colors), [colors])
+  const STATUS = useMemo(() => getStatusMeta(colors), [colors])
   const months = useMemo(() => previousMonths(), [])
   const [selectedMonth, setSelectedMonth] = useState(months[0])
   const [flats, setFlats] = useState([])
@@ -191,23 +198,29 @@ export default function CollectionHistoryScreen() {
   )
 }
 
-function Stat({ label, value, sub, color = colors.text }) {
-  return <View style={styles.statCard}><Text style={styles.statLabel}>{label.toUpperCase()}</Text><Text style={[styles.statValue, { color }]}>{value}</Text><Text style={styles.statSub}>{sub}</Text></View>
+function Stat({ label, value, sub, color }) {
+  const { colors } = useTheme()
+  const styles = useMemo(() => getStyles(colors), [colors])
+  return <View style={styles.statCard}><Text style={styles.statLabel}>{label.toUpperCase()}</Text><Text style={[styles.statValue, { color: color || colors.text }]}>{value}</Text><Text style={styles.statSub}>{sub}</Text></View>
 }
 
 function ProgressLine({ label, count, total, color }) {
+  const { colors } = useTheme()
+  const styles = useMemo(() => getStyles(colors), [colors])
   const width = total ? `${Math.round((count / total) * 100)}%` : '0%'
   return <View style={styles.progressLine}><View style={styles.progressLineHeader}><Text style={styles.progressLineLabel}>{label}</Text><Text style={[styles.progressLineValue, { color }]}>{count}</Text></View><View style={styles.progressTrack}><View style={[styles.progressFill, { backgroundColor: color, width }]} /></View></View>
 }
 
-const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: colors.bg }, center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg }, content: { padding: spacing.xl, paddingBottom: 40 },
-  kicker: { color: colors.text, fontSize: 24, fontWeight: '800', letterSpacing: -0.5 }, subtitle: { color: colors.textSecondary, fontSize: 13, marginTop: 3, marginBottom: 18 },
-  monthScroller: { gap: 8, paddingRight: 20, marginBottom: 22 }, monthChip: { paddingHorizontal: 13, paddingVertical: 9, borderRadius: radius.pill, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }, monthChipActive: { backgroundColor: colors.successBg, borderColor: colors.success }, monthChipText: { color: colors.textSecondary, fontSize: 12, fontWeight: '700' }, monthChipTextActive: { color: colors.success },
-  summaryHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }, sectionLabel: { color: colors.textTertiary, fontSize: 10.5, fontWeight: '800', letterSpacing: 0.9, marginTop: 4, marginBottom: 10 }, rateText: { color: colors.success, fontSize: 12, fontWeight: '800', marginBottom: 10 },
-  statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 20 }, statCard: { width: '48.5%', backgroundColor: colors.surface, borderRadius: 16, padding: 14, borderWidth: 1, borderColor: colors.border }, statLabel: { color: colors.textTertiary, fontSize: 9.5, fontWeight: '800', letterSpacing: 0.6 }, statValue: { fontSize: 20, fontWeight: '800', marginTop: 7, letterSpacing: -0.4 }, statSub: { color: colors.textSecondary, fontSize: 11, marginTop: 5 },
-  progressCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 20, padding: 16, marginBottom: 20 }, progressValue: { color: colors.text, fontSize: 22, fontWeight: '800' }, progressCaption: { color: colors.textTertiary, fontSize: 10, marginTop: 1 }, progressDetails: { flex: 1, marginLeft: 18, gap: 13 }, progressLine: {}, progressLineHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5 }, progressLineLabel: { color: colors.textSecondary, fontSize: 12 }, progressLineValue: { fontSize: 13, fontWeight: '800' }, progressTrack: { height: 4, borderRadius: 3, backgroundColor: colors.border, overflow: 'hidden' }, progressFill: { height: '100%', borderRadius: 3 },
-  chartCard: { height: 146, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 5, padding: 14, paddingBottom: 10, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 18, marginBottom: 20 }, barWrap: { flex: 1, alignItems: 'center', height: '100%' }, barTrack: { flex: 1, width: 8, justifyContent: 'flex-end', backgroundColor: colors.surfaceMuted, borderRadius: 5, overflow: 'hidden' }, bar: { width: '100%', backgroundColor: colors.success, borderRadius: 5 }, barLabel: { color: colors.textTertiary, fontSize: 9, marginTop: 7 },
-  searchInput: { color: colors.text, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, paddingHorizontal: 13, paddingVertical: 12, fontSize: 13.5, marginBottom: 10 }, filterRow: { gap: 8, marginBottom: 14 }, filterChip: { paddingVertical: 7, paddingHorizontal: 12, borderRadius: radius.pill, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }, filterChipActive: { backgroundColor: colors.accent, borderColor: colors.accent }, filterChipText: { color: colors.textSecondary, fontSize: 12, fontWeight: '700' }, filterChipTextActive: { color: colors.text },
-  recordCard: { minHeight: 72, flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: radius.lg, marginBottom: 9, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }, flatBadge: { width: 42, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center' }, flatBadgeText: { fontSize: 11, fontWeight: '800' }, recordInfo: { flex: 1, marginLeft: 11 }, resident: { color: colors.text, fontSize: 14, fontWeight: '700' }, recordMeta: { color: colors.textTertiary, fontSize: 11, marginTop: 3 }, recordRight: { alignItems: 'flex-end', marginLeft: 8 }, recordAmount: { color: colors.text, fontSize: 14, fontWeight: '800' }, statusBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 5, paddingVertical: 3, paddingHorizontal: 7, borderRadius: 7 }, statusText: { fontSize: 10, fontWeight: '800' }, empty: { color: colors.textSecondary, textAlign: 'center', paddingVertical: 30 },
-})
+function getStyles(colors) {
+  return StyleSheet.create({
+    page: { flex: 1, backgroundColor: colors.bg }, center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg }, content: { padding: spacing.xl, paddingBottom: 40 },
+    kicker: { color: colors.text, fontSize: 24, fontWeight: '800', letterSpacing: -0.5 }, subtitle: { color: colors.textSecondary, fontSize: 13, marginTop: 3, marginBottom: 18 },
+    monthScroller: { gap: 8, paddingRight: 20, marginBottom: 22 }, monthChip: { paddingHorizontal: 13, paddingVertical: 9, borderRadius: radius.pill, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }, monthChipActive: { backgroundColor: colors.successBg, borderColor: colors.success }, monthChipText: { color: colors.textSecondary, fontSize: 12, fontWeight: '700' }, monthChipTextActive: { color: colors.success },
+    summaryHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }, sectionLabel: { color: colors.textTertiary, fontSize: 10.5, fontWeight: '800', letterSpacing: 0.9, marginTop: 4, marginBottom: 10 }, rateText: { color: colors.success, fontSize: 12, fontWeight: '800', marginBottom: 10 },
+    statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 20 }, statCard: { width: '48.5%', backgroundColor: colors.surface, borderRadius: 16, padding: 14, borderWidth: 1, borderColor: colors.border }, statLabel: { color: colors.textTertiary, fontSize: 9.5, fontWeight: '800', letterSpacing: 0.6 }, statValue: { fontSize: 20, fontWeight: '800', marginTop: 7, letterSpacing: -0.4 }, statSub: { color: colors.textSecondary, fontSize: 11, marginTop: 5 },
+    progressCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 20, padding: 16, marginBottom: 20 }, progressValue: { color: colors.text, fontSize: 22, fontWeight: '800' }, progressCaption: { color: colors.textTertiary, fontSize: 10, marginTop: 1 }, progressDetails: { flex: 1, marginLeft: 18, gap: 13 }, progressLine: {}, progressLineHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5 }, progressLineLabel: { color: colors.textSecondary, fontSize: 12 }, progressLineValue: { fontSize: 13, fontWeight: '800' }, progressTrack: { height: 4, borderRadius: 3, backgroundColor: colors.border, overflow: 'hidden' }, progressFill: { height: '100%', borderRadius: 3 },
+    chartCard: { height: 146, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 5, padding: 14, paddingBottom: 10, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 18, marginBottom: 20 }, barWrap: { flex: 1, alignItems: 'center', height: '100%' }, barTrack: { flex: 1, width: 8, justifyContent: 'flex-end', backgroundColor: colors.surfaceMuted, borderRadius: 5, overflow: 'hidden' }, bar: { width: '100%', backgroundColor: colors.success, borderRadius: 5 }, barLabel: { color: colors.textTertiary, fontSize: 9, marginTop: 7 },
+    searchInput: { color: colors.text, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, paddingHorizontal: 13, paddingVertical: 12, fontSize: 13.5, marginBottom: 10 }, filterRow: { gap: 8, marginBottom: 14 }, filterChip: { paddingVertical: 7, paddingHorizontal: 12, borderRadius: radius.pill, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }, filterChipActive: { backgroundColor: colors.accent, borderColor: colors.accent }, filterChipText: { color: colors.textSecondary, fontSize: 12, fontWeight: '700' }, filterChipTextActive: { color: colors.text },
+    recordCard: { minHeight: 72, flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: radius.lg, marginBottom: 9, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }, flatBadge: { width: 42, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center' }, flatBadgeText: { fontSize: 11, fontWeight: '800' }, recordInfo: { flex: 1, marginLeft: 11 }, resident: { color: colors.text, fontSize: 14, fontWeight: '700' }, recordMeta: { color: colors.textTertiary, fontSize: 11, marginTop: 3 }, recordRight: { alignItems: 'flex-end', marginLeft: 8 }, recordAmount: { color: colors.text, fontSize: 14, fontWeight: '800' }, statusBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 5, paddingVertical: 3, paddingHorizontal: 7, borderRadius: 7 }, statusText: { fontSize: 10, fontWeight: '800' }, empty: { color: colors.textSecondary, textAlign: 'center', paddingVertical: 30 },
+  })
+}

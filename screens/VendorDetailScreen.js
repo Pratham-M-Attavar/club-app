@@ -1,10 +1,10 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Linking, Alert } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 import { notifyOperatorOfBooking } from '../lib/notifyOperator'
-import { colors, spacing, radius, type, VENDOR_CATEGORIES } from '../lib/theme'
+import { useTheme, spacing, radius, VENDOR_CATEGORIES } from '../lib/theme'
 import Card from '../components/ui/Card'
 import Button from '../components/ui/Button'
 import Badge from '../components/ui/Badge'
@@ -32,6 +32,8 @@ const TIME_SLOTS = [
 export default function VendorDetailScreen({ route, navigation }) {
   const { vendor } = route.params
   const { profile } = useAuth()
+  const { colors, type } = useTheme()
+  const styles = useMemo(() => getStyles(colors), [colors])
 
   const [selectedDate, setSelectedDate] = useState(null)
   const [selectedSlot, setSelectedSlot] = useState(null)
@@ -161,22 +163,24 @@ export default function VendorDetailScreen({ route, navigation }) {
   )
 }
 
-const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: colors.bg },
-  icon: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: colors.surfaceMuted,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  statsRow: { flexDirection: 'row', gap: spacing.lg, marginTop: spacing.md },
-  label: { ...type.bodyMuted, marginBottom: spacing.sm },
-  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  chip: { borderWidth: 1, borderColor: colors.border, borderRadius: radius.pill, paddingVertical: spacing.sm, paddingHorizontal: spacing.md, backgroundColor: colors.surface },
-  chipActive: { backgroundColor: colors.accent, borderColor: colors.accent },
-  chipText: { fontSize: 12.5, fontWeight: '600', color: colors.text },
-  chipTextActive: { color: colors.text },
-  textArea: { borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md, fontSize: 13, minHeight: 70, textAlignVertical: 'top', color: colors.text, backgroundColor: colors.surface },
-})
+function getStyles(colors) {
+  return StyleSheet.create({
+    page: { flex: 1, backgroundColor: colors.bg },
+    icon: {
+      width: 52,
+      height: 52,
+      borderRadius: 26,
+      backgroundColor: colors.surfaceMuted,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    statsRow: { flexDirection: 'row', gap: spacing.lg, marginTop: spacing.md },
+    label: { fontSize: 14, fontWeight: '400', color: colors.textSecondary, lineHeight: 20, marginBottom: spacing.sm },
+    chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+    chip: { borderWidth: 1, borderColor: colors.border, borderRadius: radius.pill, paddingVertical: spacing.sm, paddingHorizontal: spacing.md, backgroundColor: colors.surface },
+    chipActive: { backgroundColor: colors.accent, borderColor: colors.accent },
+    chipText: { fontSize: 12.5, fontWeight: '600', color: colors.text },
+    chipTextActive: { color: colors.text },
+    textArea: { borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md, fontSize: 13, minHeight: 70, textAlignVertical: 'top', color: colors.text, backgroundColor: colors.surface },
+  })
+}

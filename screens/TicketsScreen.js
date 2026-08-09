@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   View,
   Text,
@@ -14,11 +14,12 @@ import { Ionicons } from '@expo/vector-icons'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
-import { colors } from '../lib/theme'
+import { useTheme } from '../lib/theme'
 
 export default function TicketsScreen() {
   const { profile, isCommittee } = useAuth()
-  const c = colors
+  const { colors: c } = useTheme()
+  const styles = useMemo(() => getStyles(c), [c])
 
   const [tickets, setTickets] = useState([])
   const [loading, setLoading] = useState(true)
@@ -32,14 +33,14 @@ export default function TicketsScreen() {
   const [submitting, setSubmitting] = useState(false)
 
   const CATEGORIES = [
-  'Electrical',
-  'Plumbing',
-  'Cleaning',
-  'Security',
-  'Scrap',
-  'Housekeeping',
-  'Other',
-]
+    'Electrical',
+    'Plumbing',
+    'Cleaning',
+    'Security',
+    'Scrap',
+    'Housekeeping',
+    'Other',
+  ]
 
   async function loadTickets() {
     setLoading(true)
@@ -295,221 +296,223 @@ export default function TicketsScreen() {
   )
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.bg,
-  },
-  scrollContent: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 90,
-  },
-  headerBlock: {
-    marginBottom: 20,
-  },
-  titleText: {
-    fontSize: 32,
-    fontWeight: '800',
-    color: colors.text,
-    letterSpacing: -0.6,
-  },
-  subtitleText: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginTop: 4,
-  },
-  ticketList: {
-    gap: 12,
-  },
-  ticketCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 20,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-    gap: 14,
-  },
-  ticketMainRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-  },
-  ticketIconWrap: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  ticketTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  ticketSub: {
-    fontSize: 13,
-    color: colors.textTertiary,
-    marginTop: 3,
-  },
-  statusPill: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 999,
-  },
-  statusPillText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  statusControls: {
-    width: '100%',
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-  statusControl: {
-    flex: 1,
-    minHeight: 34,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 6,
-    borderRadius: 9,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surfaceElevated,
-  },
-  statusControlText: {
-    color: colors.textSecondary,
-    fontSize: 10,
-    fontWeight: '700',
-    textAlign: 'center',
-  },
-  bottomBar: {
-    position: 'absolute',
-    bottom: 20,
-    left: 20,
-    right: 20,
-  },
-  raiseButton: {
-    backgroundColor: colors.accent,
-    borderRadius: 16,
-    height: 54,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  raiseButtonText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  modalOverlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: colors.overlay,
-  },
-  modalBackdrop: {
-    flex: 1,
-  },
-  modalSheet: {
-    backgroundColor: colors.surface,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 24,
-    maxHeight: '85%',
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  sheetHandle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: colors.borderStrong,
-    alignSelf: 'center',
-    marginBottom: 16,
-  },
-  sheetHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  sheetTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  closeBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.surfaceElevated,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  fieldLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: colors.textSecondary,
-    letterSpacing: 0.8,
-    marginBottom: 8,
-    marginTop: 12,
-  },
-  textInput: {
-    backgroundColor: colors.bg,
-    borderRadius: 14,
-    paddingHorizontal: 16,
-    height: 50,
-    fontSize: 14,
-    color: colors.text,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  textAreaInput: {
-    height: 100,
-    paddingTop: 14,
-    textAlignVertical: 'top',
-  },
-  categoryChipsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 12,
-  },
-  catChip: {
-    backgroundColor: colors.bg,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  catChipSelected: {
-    backgroundColor: colors.accent,
-    borderColor: colors.accent,
-  },
-  catChipText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.textSecondary,
-  },
-  catChipTextSelected: {
-    color: colors.text,
-  },
-  submitButton: {
-    backgroundColor: colors.accent,
-    borderRadius: 14,
-    height: 52,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 24,
-    marginBottom: 20,
-  },
-  submitButtonText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.text,
-  },
-})
+function getStyles(colors) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.bg,
+    },
+    scrollContent: {
+      paddingHorizontal: 20,
+      paddingTop: 16,
+      paddingBottom: 90,
+    },
+    headerBlock: {
+      marginBottom: 20,
+    },
+    titleText: {
+      fontSize: 32,
+      fontWeight: '800',
+      color: colors.text,
+      letterSpacing: -0.6,
+    },
+    subtitleText: {
+      fontSize: 14,
+      color: colors.textSecondary,
+      marginTop: 4,
+    },
+    ticketList: {
+      gap: 12,
+    },
+    ticketCard: {
+      backgroundColor: colors.surface,
+      borderRadius: 20,
+      padding: 16,
+      borderWidth: 1,
+      borderColor: colors.border,
+      gap: 14,
+    },
+    ticketMainRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 14,
+    },
+    ticketIconWrap: {
+      width: 42,
+      height: 42,
+      borderRadius: 21,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    ticketTitle: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    ticketSub: {
+      fontSize: 13,
+      color: colors.textTertiary,
+      marginTop: 3,
+    },
+    statusPill: {
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 999,
+    },
+    statusPillText: {
+      fontSize: 12,
+      fontWeight: '600',
+    },
+    statusControls: {
+      width: '100%',
+      flexDirection: 'row',
+      gap: 8,
+      marginTop: 12,
+      paddingTop: 12,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+    },
+    statusControl: {
+      flex: 1,
+      minHeight: 34,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: 6,
+      borderRadius: 9,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surfaceElevated,
+    },
+    statusControlText: {
+      color: colors.textSecondary,
+      fontSize: 10,
+      fontWeight: '700',
+      textAlign: 'center',
+    },
+    bottomBar: {
+      position: 'absolute',
+      bottom: 20,
+      left: 20,
+      right: 20,
+    },
+    raiseButton: {
+      backgroundColor: colors.accent,
+      borderRadius: 16,
+      height: 54,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    raiseButtonText: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    modalOverlay: {
+      flex: 1,
+      justifyContent: 'flex-end',
+      backgroundColor: colors.overlay,
+    },
+    modalBackdrop: {
+      flex: 1,
+    },
+    modalSheet: {
+      backgroundColor: colors.surface,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      padding: 24,
+      maxHeight: '85%',
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    sheetHandle: {
+      width: 36,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: colors.borderStrong,
+      alignSelf: 'center',
+      marginBottom: 16,
+    },
+    sheetHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 20,
+    },
+    sheetTitle: {
+      fontSize: 20,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    closeBtn: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: colors.surfaceElevated,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    fieldLabel: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: colors.textSecondary,
+      letterSpacing: 0.8,
+      marginBottom: 8,
+      marginTop: 12,
+    },
+    textInput: {
+      backgroundColor: colors.bg,
+      borderRadius: 14,
+      paddingHorizontal: 16,
+      height: 50,
+      fontSize: 14,
+      color: colors.text,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    textAreaInput: {
+      height: 100,
+      paddingTop: 14,
+      textAlignVertical: 'top',
+    },
+    categoryChipsRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+      marginBottom: 12,
+    },
+    catChip: {
+      backgroundColor: colors.bg,
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+      borderRadius: 999,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    catChipSelected: {
+      backgroundColor: colors.accent,
+      borderColor: colors.accent,
+    },
+    catChipText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.textSecondary,
+    },
+    catChipTextSelected: {
+      color: colors.text,
+    },
+    submitButton: {
+      backgroundColor: colors.accent,
+      borderRadius: 14,
+      height: 52,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginTop: 24,
+      marginBottom: 20,
+    },
+    submitButtonText: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: colors.text,
+    },
+  })
+}

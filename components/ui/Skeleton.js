@@ -1,15 +1,9 @@
 import { useEffect, useRef } from 'react'
 import { View, Animated, StyleSheet } from 'react-native'
-import {
-    colors,
-    spacing,
-    radius,
-    type,
-    shadow
-} from '../../lib/theme'
+import { useTheme, spacing, radius } from '../../lib/theme'
+
 export function SkeletonBlock({ width = '100%', height = 14, style, dark = false }) {
-  
-  const c = colors
+  const { colors: c } = useTheme()
   const opacity = useRef(new Animated.Value(0.4)).current
 
   useEffect(() => {
@@ -40,8 +34,7 @@ export function SkeletonBlock({ width = '100%', height = 14, style, dark = false
 }
 
 export function DuesCardSkeleton() {
-
-  const c = colors
+  const { colors: c } = useTheme()
 
   return (
     <View style={[styles.duesSkeleton, { backgroundColor: c.hero, borderRadius: radius.lg }]}>

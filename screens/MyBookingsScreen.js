@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { supabase } from '../lib/supabase'
@@ -7,11 +7,13 @@ import Screen from '../components/Screen'
 import Card from '../components/ui/Card'
 import EmptyState from '../components/ui/EmptyState'
 import Badge from '../components/ui/Badge'
-import { colors, spacing, type } from '../lib/theme'
+import { useTheme, spacing } from '../lib/theme'
 import { bookingStatusVariant, formatCategory, formatDateTime } from '../lib/format'
 
 export default function MyBookingsScreen({ navigation }) {
   const { profile } = useAuth()
+  const { colors, type } = useTheme()
+  const styles = useMemo(() => getStyles(colors, type), [colors, type])
   const [bookings, setBookings] = useState([])
   const [refreshing, setRefreshing] = useState(false)
 
@@ -72,7 +74,8 @@ export default function MyBookingsScreen({ navigation }) {
   )
 }
 
-const styles = StyleSheet.create({
+function getStyles(colors, type) {
+  return StyleSheet.create({
   back: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: spacing.md },
   backText: { fontSize: 14, fontWeight: '600', color: colors.accent },
   title: { ...type.h1, color: colors.accent },
@@ -80,4 +83,5 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   vendorName: { fontSize: 15, fontWeight: '700', color: colors.text },
   meta: { fontSize: 12, color: colors.textMuted, marginTop: 3 },
-})
+  })
+}

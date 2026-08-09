@@ -1,11 +1,14 @@
+import { useMemo } from 'react'
 import { View, Text, StyleSheet } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useAuth } from '../lib/AuthContext'
-import { colors, spacing, radius, type } from '../lib/theme'
+import { useTheme, spacing } from '../lib/theme'
 import Button from '../components/ui/Button'
 
 export default function PendingApprovalScreen() {
   const { profile, signOut } = useAuth()
+  const { colors, type } = useTheme()
+  const styles = useMemo(() => getStyles(colors, type), [colors, type])
   const isRejected = profile?.approval_status === 'rejected'
 
   return (
@@ -27,10 +30,12 @@ export default function PendingApprovalScreen() {
   )
 }
 
-const styles = StyleSheet.create({
+function getStyles(colors, type) {
+  return StyleSheet.create({
   page: { flex: 1, backgroundColor: colors.bg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xxl },
   icon: { fontSize: 36, marginBottom: spacing.md },
   body: { ...type.bodyMuted, textAlign: 'center', marginTop: spacing.sm, lineHeight: 20 },
   meta: { ...type.caption, marginTop: spacing.lg },
-})
+  })
+}

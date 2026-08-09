@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   View,
   Text,
@@ -15,11 +15,12 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 import { notifyOperatorOfBooking } from '../lib/notifyOperator'
-import { colors, radius, VENDOR_CATEGORIES } from '../lib/theme'
+import { useTheme, VENDOR_CATEGORIES } from '../lib/theme'
 
 export default function ServicesScreen({ navigation }) {
   const { profile } = useAuth()
-  const c = colors
+  const { colors: c } = useTheme()
+  const styles = useMemo(() => getStyles(c), [c])
 
   const [vendors, setVendors] = useState([])
   const [loading, setLoading] = useState(true)
@@ -248,171 +249,173 @@ export default function ServicesScreen({ navigation }) {
   )
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.bg,
-  },
-  scrollContent: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 30,
-  },
-  headerBlock: {
-    marginBottom: 20,
-  },
-  titleText: {
-    fontSize: 32,
-    fontWeight: '800',
-    color: colors.text,
-    letterSpacing: -0.6,
-  },
-  subtitleText: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginTop: 4,
-  },
-  searchBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    height: 52,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginBottom: 24,
-    gap: 10,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 15,
-    color: colors.text,
-  },
-  categoryGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-    marginBottom: 20,
-  },
-  gridCard: {
-    width: '30.5%',
-    aspectRatio: 1,
-    backgroundColor: colors.surface,
-    borderRadius: 20,
-    padding: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  gridCardSelected: {
-    borderColor: colors.accent,
-    backgroundColor: colors.surfaceElevated,
-  },
-  gridCardDisabled: {
-    opacity: 0.45,
-  },
-  gridIconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    backgroundColor: colors.accentSoft,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  gridIconWrapSelected: {
-    backgroundColor: colors.accent,
-  },
-  gridLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.text,
-    textAlign: 'center',
-  },
-  gridLabelSelected: {
-    color: colors.text,
-  },
-  gridLabelDisabled: {
-    color: colors.textTertiary,
-  },
-  unavailableText: {
-    fontSize: 10,
-    color: colors.textTertiary,
-    marginTop: 2,
-  },
-  emergencyBanner: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  emergencyLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  emergencyIconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: colors.dangerBg,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  emergencyTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  emergencySub: {
-    fontSize: 12,
-    color: colors.textTertiary,
-    marginTop: 2,
-  },
-  sectionTitle: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: colors.textSecondary,
-    letterSpacing: 0.8,
-    marginBottom: 12,
-  },
-  noVendorsText: {
-    fontSize: 14,
-    color: colors.textTertiary,
-  },
-  vendorCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  vendorIconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: colors.accentSoft,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  vendorName: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  vendorSub: {
-    fontSize: 12,
-    color: colors.textTertiary,
-    marginTop: 2,
-  },
-})
+function getStyles(colors) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.bg,
+    },
+    scrollContent: {
+      paddingHorizontal: 20,
+      paddingTop: 16,
+      paddingBottom: 30,
+    },
+    headerBlock: {
+      marginBottom: 20,
+    },
+    titleText: {
+      fontSize: 32,
+      fontWeight: '800',
+      color: colors.text,
+      letterSpacing: -0.6,
+    },
+    subtitleText: {
+      fontSize: 14,
+      color: colors.textSecondary,
+      marginTop: 4,
+    },
+    searchBar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.surface,
+      borderRadius: 16,
+      paddingHorizontal: 16,
+      height: 52,
+      borderWidth: 1,
+      borderColor: colors.border,
+      marginBottom: 24,
+      gap: 10,
+    },
+    searchInput: {
+      flex: 1,
+      fontSize: 15,
+      color: colors.text,
+    },
+    categoryGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 12,
+      marginBottom: 20,
+    },
+    gridCard: {
+      width: '30.5%',
+      aspectRatio: 1,
+      backgroundColor: colors.surface,
+      borderRadius: 20,
+      padding: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    gridCardSelected: {
+      borderColor: colors.accent,
+      backgroundColor: colors.surfaceElevated,
+    },
+    gridCardDisabled: {
+      opacity: 0.45,
+    },
+    gridIconWrap: {
+      width: 44,
+      height: 44,
+      borderRadius: 14,
+      backgroundColor: colors.accentSoft,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginBottom: 10,
+    },
+    gridIconWrapSelected: {
+      backgroundColor: colors.accent,
+    },
+    gridLabel: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.text,
+      textAlign: 'center',
+    },
+    gridLabelSelected: {
+      color: colors.text,
+    },
+    gridLabelDisabled: {
+      color: colors.textTertiary,
+    },
+    unavailableText: {
+      fontSize: 10,
+      color: colors.textTertiary,
+      marginTop: 2,
+    },
+    emergencyBanner: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      backgroundColor: colors.surface,
+      borderRadius: 16,
+      padding: 16,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    emergencyLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+    },
+    emergencyIconWrap: {
+      width: 36,
+      height: 36,
+      borderRadius: 10,
+      backgroundColor: colors.dangerBg,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    emergencyTitle: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    emergencySub: {
+      fontSize: 12,
+      color: colors.textTertiary,
+      marginTop: 2,
+    },
+    sectionTitle: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: colors.textSecondary,
+      letterSpacing: 0.8,
+      marginBottom: 12,
+    },
+    noVendorsText: {
+      fontSize: 14,
+      color: colors.textTertiary,
+    },
+    vendorCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      backgroundColor: colors.surface,
+      borderRadius: 16,
+      padding: 16,
+      marginBottom: 10,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    vendorIconWrap: {
+      width: 40,
+      height: 40,
+      borderRadius: 12,
+      backgroundColor: colors.accentSoft,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    vendorName: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    vendorSub: {
+      fontSize: 12,
+      color: colors.textTertiary,
+      marginTop: 2,
+    },
+  })
+}

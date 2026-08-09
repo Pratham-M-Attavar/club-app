@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
-import { colors, spacing, radius } from '../lib/theme'
+import { useTheme, spacing, radius } from '../lib/theme'
 
 const CATEGORIES = ['general', 'maintenance', 'event', 'security']
 const EXPIRY_DAYS = 3
@@ -17,6 +17,8 @@ function daysRemaining(createdAt) {
 
 export default function NoticesScreen() {
   const { profile } = useAuth()
+  const { colors } = useTheme()
+  const styles = useMemo(() => getStyles(colors), [colors])
   const [title, setTitle] = useState('')
   const [body, setBody] = useState('')
   const [category, setCategory] = useState('general')
@@ -100,25 +102,27 @@ export default function NoticesScreen() {
       <TextInput
         style={styles.input}
         placeholder="Title (e.g. Lift B under maintenance)"
+        placeholderTextColor={colors.textTertiary}
         value={title}
         onChangeText={setTitle}
       />
       <TextInput
         style={styles.textArea}
         placeholder="Details (optional)"
+        placeholderTextColor={colors.textTertiary}
         value={body}
         onChangeText={setBody}
         multiline
       />
 
       <View style={styles.categoryRow}>
-        {CATEGORIES.map(c => (
+        {CATEGORIES.map(cat => (
           <TouchableOpacity
-            key={c}
-            style={category === c ? styles.categoryChipActive : styles.categoryChip}
-            onPress={() => setCategory(c)}
+            key={cat}
+            style={category === cat ? styles.categoryChipActive : styles.categoryChip}
+            onPress={() => setCategory(cat)}
           >
-            <Text style={category === c ? styles.categoryChipTextActive : styles.categoryChipText}>{c}</Text>
+            <Text style={category === cat ? styles.categoryChipTextActive : styles.categoryChipText}>{cat}</Text>
           </TouchableOpacity>
         ))}
       </View>
@@ -165,7 +169,8 @@ export default function NoticesScreen() {
   )
 }
 
-const styles = StyleSheet.create({
+function getStyles(colors) {
+  return StyleSheet.create({
   page: { flex: 1, backgroundColor: colors.bg },
   contentContainer: { paddingHorizontal: spacing.xl, paddingTop: spacing.lg, paddingBottom: spacing.xxl },
   title: { fontSize: 20, fontWeight: '700', color: colors.text, marginBottom: 16 },
@@ -190,4 +195,5 @@ const styles = StyleSheet.create({
   noticeMeta: { fontSize: 11.5, color: colors.textSecondary },
   expiryText: { fontSize: 11, color: colors.textTertiary, fontWeight: '600' },
   expiryTextSoon: { fontSize: 11, color: colors.warning, fontWeight: '700' },
-})
+  })
+}

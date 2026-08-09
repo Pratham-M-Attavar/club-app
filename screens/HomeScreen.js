@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   View,
   Text,
@@ -18,14 +18,15 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 
 import { pickAndUploadProof } from '../lib/paymentProof'
-import { colors } from '../lib/theme'
+import { useTheme } from '../lib/theme'
 import { dueDateForMonth, getCurrentMonthStr } from '../lib/format'
 import BuildingPickerModal from '../components/BuildingPickerModal'
 
 export default function HomeScreen({ navigation }) {
 
   const { profile, isAdmin, adminBuilding, realProfile } = useAuth()
-  const c = colors
+  const { colors: c } = useTheme()
+  const styles = useMemo(() => getStyles(c), [c])
   const [refreshing, setRefreshing] = useState(false)
   const [showBuildingPicker, setShowBuildingPicker] = useState(false)
   // Dynamic Supabase State
@@ -1143,7 +1144,8 @@ export default function HomeScreen({ navigation }) {
   )
 }
 
-const styles = StyleSheet.create({
+function getStyles(colors) {
+  return StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.bg,
@@ -1628,4 +1630,5 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.textTertiary,
   },
-})
+  })
+}
